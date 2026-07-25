@@ -13,11 +13,35 @@ let
   ref = import ./ref.nix { inherit prelude aspects; };
   identity = import ./identity.nix { inherit prelude aspects schema; };
   normalize = import ./normalize.nix { inherit prelude ref; };
-  rewrite = import ./rewrite.nix { inherit prelude scope identity normalize; };
+  rewrite = import ./rewrite.nix {
+    inherit
+      prelude
+      scope
+      identity
+      normalize
+      ;
+  };
   union = import ./union.nix { inherit prelude scope; };
   facets = import ./facets.nix { inherit prelude; };
   contract = import ./contract.nix { inherit prelude algebra schema; };
   wireLib = import ./wire.nix { inherit prelude identity facets; };
+  manifest = import ./manifest.nix { inherit prelude; };
+  link = import ./link.nix {
+    inherit
+      prelude
+      scope
+      resolve
+      identity
+      ref
+      normalize
+      rewrite
+      union
+      facets
+      contract
+      manifest
+      ;
+    inherit wireLib;
+  };
 in
 {
   _scaffold = true;
@@ -40,4 +64,6 @@ in
   inherit (contract) checkCapability checkRefined;
   _recordHas = contract._recordHas;
   inherit (wireLib) bindNode;
+  inherit (link) link;
+  inherit (manifest) entry order;
 }
