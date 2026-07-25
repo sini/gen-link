@@ -14,6 +14,7 @@ let
   identity = import ./identity.nix { inherit prelude aspects schema; };
   normalize = import ./normalize.nix { inherit prelude ref; };
   rewrite = import ./rewrite.nix { inherit prelude scope identity normalize; };
+  union = import ./union.nix { inherit prelude scope; };
 in
 {
   _scaffold = true;
@@ -26,4 +27,5 @@ in
   inherit (normalize) normalize;
   _hasRefPrefix = normalize.hasRefPrefix;
   inherit (rewrite) originStamp;
+  inherit (union) disjointUnion;
 }
