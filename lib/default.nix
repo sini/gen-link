@@ -13,6 +13,7 @@ let
   ref = import ./ref.nix { inherit prelude aspects; };
   identity = import ./identity.nix { inherit prelude aspects schema; };
   normalize = import ./normalize.nix { inherit prelude ref; };
+  rewrite = import ./rewrite.nix { inherit prelude scope identity normalize; };
 in
 {
   _scaffold = true;
@@ -24,4 +25,5 @@ in
   inherit (identity) nodeId keyRefTargetId instantiatedId;
   inherit (normalize) normalize;
   _hasRefPrefix = normalize.hasRefPrefix;
+  inherit (rewrite) originStamp;
 }
