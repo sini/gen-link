@@ -9,7 +9,14 @@
   algebra,
   aspects,
 }:
+let
+  ref = import ./ref.nix { inherit prelude aspects; };
+in
 {
-  # Modules land here as tasks complete. Marker proves the lib evaluates and wires deps.
   _scaffold = true;
+  inherit (ref)
+    parseRef
+    originLabel
+    renderOrigin
+    ;
 }
