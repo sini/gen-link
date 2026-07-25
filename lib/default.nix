@@ -12,6 +12,7 @@
 let
   ref = import ./ref.nix { inherit prelude aspects; };
   identity = import ./identity.nix { inherit prelude aspects schema; };
+  normalize = import ./normalize.nix { inherit prelude ref; };
 in
 {
   _scaffold = true;
@@ -21,4 +22,6 @@ in
     renderOrigin
     ;
   inherit (identity) nodeId keyRefTargetId instantiatedId;
+  inherit (normalize) normalize;
+  _hasRefPrefix = normalize.hasRefPrefix;
 }
