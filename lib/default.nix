@@ -16,6 +16,7 @@ let
   rewrite = import ./rewrite.nix { inherit prelude scope identity normalize; };
   union = import ./union.nix { inherit prelude scope; };
   facets = import ./facets.nix { inherit prelude; };
+  contract = import ./contract.nix { inherit prelude algebra schema; };
 in
 {
   _scaffold = true;
@@ -35,4 +36,6 @@ in
     requiresOf
     contractOf
     ;
+  inherit (contract) checkCapability checkRefined;
+  _recordHas = contract._recordHas;
 }
