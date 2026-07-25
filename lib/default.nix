@@ -11,6 +11,7 @@
 }:
 let
   ref = import ./ref.nix { inherit prelude aspects; };
+  identity = import ./identity.nix { inherit prelude aspects schema; };
 in
 {
   _scaffold = true;
@@ -19,4 +20,5 @@ in
     originLabel
     renderOrigin
     ;
+  inherit (identity) nodeId keyRefTargetId instantiatedId;
 }
