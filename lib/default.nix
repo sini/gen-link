@@ -17,6 +17,7 @@ let
   union = import ./union.nix { inherit prelude scope; };
   facets = import ./facets.nix { inherit prelude; };
   contract = import ./contract.nix { inherit prelude algebra schema; };
+  wireLib = import ./wire.nix { inherit prelude identity facets; };
 in
 {
   _scaffold = true;
@@ -38,4 +39,5 @@ in
     ;
   inherit (contract) checkCapability checkRefined;
   _recordHas = contract._recordHas;
+  inherit (wireLib) bindNode;
 }
