@@ -15,6 +15,7 @@ let
   normalize = import ./normalize.nix { inherit prelude ref; };
   rewrite = import ./rewrite.nix { inherit prelude scope identity normalize; };
   union = import ./union.nix { inherit prelude scope; };
+  facets = import ./facets.nix { inherit prelude; };
 in
 {
   _scaffold = true;
@@ -28,4 +29,10 @@ in
   _hasRefPrefix = normalize.hasRefPrefix;
   inherit (rewrite) originStamp;
   inherit (union) disjointUnion;
+  inherit (facets)
+    holesOf
+    providesOf
+    requiresOf
+    contractOf
+    ;
 }
