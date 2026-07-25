@@ -51,7 +51,13 @@ let
           else
             holeFillings.${prelude.removePrefix "hole:" k};
       in
-      schema.hashIdentity "aspect" ([ "origin" "key" ] ++ holeKeys) valueOf;
+      schema.hashIdentity "aspect" (
+        [
+          "origin"
+          "key"
+        ]
+        ++ holeKeys
+      ) valueOf;
 in
 {
   inherit nodeId keyRefTargetId instantiatedId;

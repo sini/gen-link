@@ -26,7 +26,11 @@ let
       nodesByKey,
       refByToken,
     }:
-    k: if refByToken ? ${k} then identity.keyRefTargetId refByToken.${k} else identity.nodeId origin nodesByKey.${k};
+    k:
+    if refByToken ? ${k} then
+      identity.keyRefTargetId refByToken.${k}
+    else
+      identity.nodeId origin nodesByKey.${k};
 
   # Split an alias target ("apps/media/postgres") into { chain; last } so `identity.key` recomputes.
   splitSlash = s: builtins.filter (x: builtins.isString x && x != "") (builtins.split "/" s);

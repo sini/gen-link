@@ -22,7 +22,11 @@ let
     ks: node:
     prelude.unique (
       prelude.concatMap (
-        f: if (node ? ${f}) && builtins.isAttrs node.${f} && (node.${f} ? provides) then node.${f}.provides else [ ]
+        f:
+        if (node ? ${f}) && builtins.isAttrs node.${f} && (node.${f} ? provides) then
+          node.${f}.provides
+        else
+          [ ]
       ) (facetKeys ks)
     );
 in

@@ -42,7 +42,9 @@ let
     if violations == [ ] then
       value
     else
-      throw "gen-link.contract: edge '${edgeName}' fails refinement — ${builtins.concatStringsSep "; " (map (v: v.message) violations)}";
+      throw "gen-link.contract: edge '${edgeName}' fails refinement — ${
+        builtins.concatStringsSep "; " (map (v: v.message) violations)
+      }";
 in
 {
   inherit checkCapability checkRefined;

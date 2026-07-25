@@ -88,5 +88,10 @@ let
     };
 in
 {
-  inherit normalize isNode hasRefPrefix refPrefix;
+  inherit
+    normalize
+    isNode
+    hasRefPrefix
+    refPrefix
+    ;
 }
