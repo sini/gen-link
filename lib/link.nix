@@ -100,6 +100,31 @@ let
         );
       boundNodes = prelude.mapAttrsToList bindOne wire;
 
+      # ── unfilled-hole completeness guard over the MERGED requirer set (decision 7) ────────────────
+      # `bindOne`/`wire.nix` only reach requirers that `wire` NAMES, so a merged requirer carrying a
+      # `requires` facet with NO `wire` entry would land unbound and `link` would SUCCEED silently.
+      # Drive `facets.holesOf` over EVERY merged node and demand each declared hole is covered by a
+      # `wire` entry for that node's ref (keyed by the SAME ref↔id map `bindOne` uses via `refId`).
+      wiredFacetsById = prelude.listToAttrs (
+        prelude.mapAttrsToList (requirerRef: fillings: {
+          name = refId requirerRef;
+          value = builtins.attrNames fillings;
+        }) wire
+      );
+      unwiredHoleGuard = prelude.mapAttrsToList (
+        id: en:
+        let
+          holes = facets.holesOf (ksOf en.origin) en.node;
+          wired = wiredFacetsById.${id} or [ ];
+          unfilled = builtins.filter (h: !(builtins.elem h wired)) holes;
+          requirerRef = "${ref.renderOrigin en.origin}/${en.node.key}";
+        in
+        if unfilled == [ ] then
+          null
+        else
+          throw "gen-link.link: aspect '${requirerRef}' has unwired required facet(s): ${builtins.concatStringsSep ", " unfilled}. Wire each via `wire.\"${requirerRef}\".<facet> = <provider-ref>`."
+      ) merged.idToNode;
+
       # ── step 4: resolve cross-origin references over the merged graph AS the gen-scope scope ──────
       # importIndex: each node id -> the ids it includes (from the merged graph edges). Keys are IDS.
       importIndex = prelude.foldl' (
@@ -178,7 +203,9 @@ let
     in
     {
       graph = merged.graph;
-      manifest = manifestEntries;
+      # deepSeq forces the completeness guard to RUN (its named throw fires) before the manifest is
+      # observed — lazy-safe, like the per-edge/partial-wire guards folded into `boundNodes`.
+      manifest = builtins.deepSeq unwiredHoleGuard manifestEntries;
       nodes = merged.idToNode;
       bound = boundNodes;
       inherit resolved;

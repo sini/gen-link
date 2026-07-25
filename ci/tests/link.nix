@@ -88,6 +88,26 @@ let
       wire."a/apps/media/pg".dbreq = "a/nonexistent";
     }).manifest
   );
+  # A MERGED requirer (b/apps/app carries the `dbreq` requires-hole) with NO `wire` entry at all.
+  # Both sources are present so the cross-origin `includes` resolves — the ONLY defect is the
+  # unwired hole. Decision 7 demands a loud, named error, not a silent unbound success.
+  unwiredRequirer = builtins.tryEval (
+    (genLink.link {
+      sources = [
+        {
+          registry = regA.config.aspects;
+          keySemantics = ks;
+          origin = [ "a" ];
+        }
+        {
+          registry = regB.config.aspects;
+          keySemantics = ks;
+          origin = [ "b" ];
+        }
+      ];
+      # deliberately no `wire`: b/apps/app#dbreq is left unfilled.
+    }).manifest
+  );
 in
 {
   flake.tests.link.test-returns-graph-and-manifest = {
@@ -122,6 +142,11 @@ in
   };
   flake.tests.link.test-absent-wire-target-throws = {
     expr = badWire.success;
+    expected = false;
+  };
+  # decision 7: a merged requirer whose required facet is never wired is a LOUD, named error.
+  flake.tests.link.test-unwired-required-facet-throws = {
+    expr = unwiredRequirer.success;
     expected = false;
   };
 }
