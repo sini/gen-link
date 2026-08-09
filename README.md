@@ -159,7 +159,7 @@ config.aspects = {
 
 ```nix
 portFacet = { category = "facet"; contract = "refined";
-  refinedType = genSchema.refined genSchema.types.int [ { name = "positive"; check = v: v > 0; } ];
+  refinedType = genSchema.refined genMerge.types.int [ { name = "positive"; check = v: v > 0; } ];
   option = facetOpt; };
 ```
 
