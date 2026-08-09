@@ -1,6 +1,7 @@
 {
   genLink,
   genSchema,
+  genMerge,
   ...
 }:
 let
@@ -20,7 +21,7 @@ let
     }
   );
   # a refined facet: value must be a valid tcp port.
-  portType = genSchema.refined genSchema.types.int genSchema.refinements.tcpPort;
+  portType = genSchema.refined genMerge.types.int genSchema.refinements.tcpPort;
   refOk = genLink.checkRefined {
     edgeName = "e3";
     refinedType = portType;
