@@ -1,7 +1,15 @@
-# gen-link identity — the origin coordinate + instantiation identity, routed through the ONE canonical
+# gen-link identity — the origin coordinate + instantiation identity, routed through the canonical
 # content-address formula (gen-schema `hashIdentity`; Merkle 1987 content-address, Dolstra 2006 lock
 # discipline). gen-link NEVER calls sha256: holeless ids delegate to gen-aspects `aspectId`, and
 # hole-filled (instantiation) ids call gen-schema `hashIdentity` DIRECTLY with the extended key list.
+#
+# Those are TWO routes to the formula, and lib/link.nix joins the ids they mint BY EQUALITY, so the
+# formula has to be ONE. That is not inherent: `aspectId` resolves `hashIdentity` from gen-aspects' own
+# gen-schema input, not from this module's. It is the LOCK that makes it one —
+# `gen-aspects.inputs.gen-schema.follows = "gen-schema"` in both flake.nix and ci/flake.nix collapses
+# the two to a single instance. Without that follows the routes are two formulas whenever the pins
+# differ, every route-crossing lookup misses, and declared holes read as unwired.
+#
 # Instantiation-creates-identity is APPLICATIVE (Leroy 1995: same fillings => same id); fillers are
 # defunctionalized to node-ids before hashing (Reynolds 1972).
 {
