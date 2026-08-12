@@ -5,7 +5,13 @@
     gen-merge.url = "github:sini/gen-merge";
     gen-schema.url = "github:sini/gen-schema";
     gen-algebra.url = "github:sini/gen-algebra";
+
+    # ONE gen-schema instance through the whole stack, mirroring the root flake: gen-link joins ids
+    # minted via gen-aspects' `aspectId` with ids minted via `schema.hashIdentity`, so two copies are
+    # two content-address formulas and every route-crossing lookup misses.
     gen-aspects.url = "github:sini/gen-aspects";
+    gen-aspects.inputs.gen-schema.follows = "gen-schema";
+
     gen-scope.url = "github:sini/gen-scope";
     gen-resolve.url = "github:sini/gen-resolve";
     gen-edge.url = "github:sini/gen-edge";
