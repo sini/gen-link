@@ -118,14 +118,14 @@ link {
 
 **The six-step sequencing** (the only thing gen-link owns; every computation is delegated):
 
-1. **Normalize + origin-rewrite each source.** Ingest the registry into a source-relative graph (nodes keyed by `.key`; `includes` — by-value or by-key — extracted uniformly into id-edges), then recompute each node id with the federation-assigned origin and swap every edge endpoint — a uniform relabel over gen-scope `gmap`, no content re-evaluation. Per-node `alias` renames apply here.
+1. **Normalize + origin-rewrite each source.** Ingest the registry into a source-relative graph (nodes keyed by `.key`; `includes` — by-value or by-key — extracted uniformly into id-edges), then rename every node to its federation **identifier** under the assigned origin and swap every edge endpoint — a uniform relabel over gen-scope `gmap`, no content re-evaluation. Per-node `alias` renames apply here.
 1. **Disjoint union.** `overlay` the origin-rewritten subgraphs (gen-scope). Origin makes the union collision-free by construction.
-1. **Bind holes.** For each `wire` entry, record the `(facet-require → fillerId)` pairing on the aspect; this folds into its instantiation identity (gen-schema `hashIdentity`) and produces the filled node. An unwired required facet is a loud, named error.
+1. **Mint, in staged passes.** Each `wire` entry contributes a RELATUM to its requirer — label the facet name, value the filler's identifier — and every merged node is emitted to gen-scope's `mintStrata` at a pass derived from the wire graph. A relatum resolves only against what strictly earlier passes settled, so an ill-founded filling (a node filling its own hole, or a cycle) cannot resolve and is refused by name. An unwired required facet is a separate, loud, named error.
 1. **Resolve cross-origin references.** Run gen-resolve `reference` (forward `includes` nearest-binding) over the merged graph *as the scope*. Resolution is active-edge-driven and lazy — gen-link does not scan.
 1. **Type-check each active cross-origin edge.** Capability → gen-algebra `record` (`requires ⊆ provides`); refined → gen-schema `checkRefinements`. A type failure is a loud, named error at the edge.
 1. **Record the manifest.** Every cross-origin `includes` edge and every wired hole is written to the manifest with both endpoints' ids — the `flake.lock` pattern (Dolstra 2006) applied to cross-origin edges.
 
-Steps 1–2 are the "disjoint-union + relabel" owned row; step 6 is the "resolution manifest" owned row; steps 3–5 delegate. gen-link holds no graph between calls — the merged `graph` is a gen-scope value returned to the caller.
+Steps 1–2 are the "disjoint-union + relabel" owned row; step 6 is the "resolution manifest" owned row; steps 3–5 delegate. gen-link mints nothing itself: what it owns of step 3 is the pass derivation and the emitter list. gen-link holds no graph between calls — the merged `graph` is a gen-scope value returned to the caller.
 
 ## Declaring Facet Ports
 
@@ -173,22 +173,38 @@ The flake's `.lib` exposes:
 
 The federation conductor (above). `sources` entries are `{ registry; origin ? []; alias ? {}; keySemantics ? {}; }`; `wire` is `{ "<requirerRef>" = { <facet> = "<fillerRef>"; }; }`. References are origin-qualified path-strings or structured `{ origin; path }`.
 
-### Identity
+### Identifier and identity
 
-All aspect identity routes through gen-schema's **one** content-address formula, `hashIdentity kind keys valueOf` (hashed in list order, no internal sort). gen-link never calls `sha256`.
+ADR-0016 ruling 5 keeps two things apart, and this library used to merge them.
 
-| Function | Signature | Semantics |
-|----------|-----------|-----------|
-| `nodeId` | `origin → node → id` | Base (holeless) node id — pure delegation to gen-aspects `aspectId`. `origin = []` and no holes preserves today's `.key` partition byte-for-byte. |
-| `keyRefTargetId` | `parsedRef → id` | Edge-target id for a by-key include; reads the keyRef's own origin + key so it byte-equals the id of the node it names (avoids the `aspectId`-on-a-keyRef `"<anon>"` gotcha). |
-| `instantiatedId` | `origin → node → holeFillings → id` | Instantiation identity (applicative, Leroy 1995): empty fillings ≡ `nodeId`; each hole contributes a sorted `hole:<facet>=<fillerId>` preimage segment, so distinct fillings ⇒ distinct ids, filling-order-independent. |
+An **identifier** is the name a node carries as a vertex: the origin-qualified reference,
+`"<origin>/<key>"`, with `[]` rendered `"self"`. It keys the node map, it is what an edge endpoint
+names, and it is what a `wire` entry writes. It is a string a reader can write by hand.
+
+An **identity** is the derived content-address, minted once per node by gen-schema's `hashIdentity`
+and reached ONLY through gen-scope's minting entry. It rides as a FIELD on the node —
+`(link {…}).nodes."<identifier>".identity` — never as its name.
+
+**gen-link publishes no function that computes either one.** There is nothing to construct for an
+identifier, and a second route to an identity would be a second minting authority. The four
+functions that used to live here — `nodeId`, `keyRefTargetId`, `instantiatedId`, `bindNode` — are
+retired: all four minted whatever input they were handed with no membership test, so keeping them
+would have left the ill-founded instantiation expressible on the surface while it was inexpressible
+through `link`.
+
+**The manifest carries identifiers, never identities.** Ruling 5 rules the content-address internal
+addressing only — consistent within an evaluation, with nothing durable depending on it across
+them — and the manifest is designed for a consumer to serialize to a `gen-link.lock`. The rows are
+therefore the readable coordinates, which is also the more useful artefact: an identity is a
+computed value a human cannot read back, while the coordinates are the function's own INPUTS, so a
+tool can reproduce or query the output from the rows and the identity rebuilds from them.
 
 ### References & Origin
 
 | Function | Signature | Semantics |
 |----------|-----------|-----------|
 | `parseRef` | `ref → { __keyRef; origin; path; key }` | Parse a structured or string reference; `self` maps to origin `[]`. Slash-splitting delegates to gen-aspects `keyRef`. |
-| `originLabel` | `origin → string` | The `"/"`-joined origin list — the datum `hashIdentity` hashes. |
+| `originLabel` | `origin → string` | The raw `"/"`-joined origin list; `[]` → `""`. `renderOrigin` is what builds identifiers. |
 | `renderOrigin` | `origin → string` | Surface rendering for manifests/errors/keys: `[]` → `"self"`. |
 
 ### Federation Steps
@@ -210,11 +226,10 @@ All aspect identity routes through gen-schema's **one** content-address formula,
 | `checkCapability` | `{ edgeName; provides; requires } → record \| throw` | `requires ⊆ provides` via gen-algebra `record.has`; own named error on a missing tag, `record.assertSatisfies` on success. |
 | `checkRefined` | `{ edgeName; refinedType; value } → value \| throw` | gen-schema `checkRefinements` over a `__schema`-tagged refined type; own named error on a violation. |
 
-### Wire & Manifest
+### Manifest
 
 | Function | Signature | Semantics |
 |----------|-----------|-----------|
-| `bindNode` | `{ origin; node; ks; holeFillings } → { id; node; origin; holeFillings }` | Bind a node's holes (instantiation identity); an unwired required facet throws named. |
 | `entry` | `{ kind; from; to; via ? null } → manifestEntry` | Construct one manifest entry (`kind ∈ { "includes", "hole" }`). |
 | `order` | `[ entry ] → [ entry ]` | Deterministic ordering for diff stability. |
 
@@ -222,9 +237,10 @@ All aspect identity routes through gen-schema's **one** content-address formula,
 
 The sufficiency claim — **gen-link sequences the real siblings and adds only origin + union + manifest** — is proven by the conductor oracle (`ci/tests/conductor-oracle.nix`), one chain end-to-end:
 
-1. Origin-union two toy collections that each define `apps/media/pg` → assert their federated nodes have **distinct** origin-qualified ids (origin entered the `hashIdentity` preimage).
+1. Origin-union two toy collections that each define `apps/media/pg` → assert their federated nodes have **distinct** origin-qualified identifiers.
 1. Wire a capability edge and type-check it via gen-algebra; the unsatisfiable variant throws named.
 1. Resolve the cross-origin include via gen-resolve `reference` → the requirer sees the provider's tags (a stubbed `reference` returns null and the assertion catches it — gen-resolve is genuinely load-bearing).
+1. Rebuild the wired node's identity from its identifier and its relatum's identity through gen-schema directly, and assert the minting run produced the same digest.
 1. Materialize the linked node's class content through gen-edge.
 
 If any sibling were stubbed, the chain breaks.
