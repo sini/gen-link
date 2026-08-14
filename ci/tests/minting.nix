@@ -4,11 +4,19 @@
   lib,
   genLink,
   genMerge,
+  aspects,
   mkAspectRegistry,
   ...
 }:
 let
-  fixtures = import ./_fixtures/link.nix { inherit genLink genMerge mkAspectRegistry; };
+  fixtures = import ./_fixtures/link.nix {
+    inherit
+      genLink
+      genMerge
+      aspects
+      mkAspectRegistry
+      ;
+  };
   inherit (fixtures) wired;
 
   holeRows = res: builtins.filter (e: e.kind == "hole") res.manifest;
@@ -18,6 +26,10 @@ let
       e.from
       e.to
     ]) res.manifest;
+  # Every string a row carries, so an "identities never serialize" claim quantifies over the whole
+  # row rather than over the two fields someone remembered to list.
+  allRowStrings =
+    res: builtins.concatMap (e: builtins.filter builtins.isString (builtins.attrValues e)) res.manifest;
 
   twoLabels = genLink.link fixtures.twoLabels;
   chain = genLink.link fixtures.chain;
@@ -68,18 +80,67 @@ in
       }
     ];
   };
-  flake.tests.minting.test-two-holes-emit-two-rows-with-distinct-labels = {
-    expr = lib.sort (a: b: a < b) (map (e: e.via) (holeRows twoLabels));
+
+  # ── EACH ENDPOINT CARRIES ITS NODE'S KIND ──
+  # An identity is `"<kind>:" + digest`, so the kind is the tag prefix and nothing else in a row
+  # carries it once the identity stops being serialized. A consumer holding a row of a mixed-kind
+  # federation would otherwise have no way to name the kind to mint with, and the
+  # identity-rebuilds-from-the-rows property would hold only for a single-kind one.
+  #
+  # ★ The fields are NOT called `kind`: this row already has one, and it means the ROW's sort
+  # (`"includes"` / `"hole"`) — a property of the relation rather than of either endpoint.
+  flake.tests.minting.test-every-row-carries-both-endpoint-kinds = {
+    expr = map (e: {
+      inherit (e) kind fromKind toKind;
+    }) wired.manifest;
     expected = [
-      "cachereq"
-      "dbreq"
+      # `"hole"` precedes `"includes"` because `order` sorts on the row kind first.
+      {
+        kind = "hole";
+        fromKind = "aspect";
+        toKind = "aspect";
+      }
+      {
+        kind = "includes";
+        fromKind = "aspect";
+        toKind = "aspect";
+      }
     ];
   };
-  # Two holes filled by ONE provider are two relata, so the requirer's identity is a function of
-  # both labels — the rows are not a rendering of a single edge counted twice.
-  flake.tests.minting.test-two-labels-key-one-identity = {
-    expr = twoLabels.nodes."b/apps/app".identity == wired.nodes."b/apps/app".identity;
-    expected = false;
+  # The kind is READ from the minting run rather than defaulted: `entry` takes both as REQUIRED
+  # formals. The cell measures the SIGNATURE rather than trying to catch the refusal, because a
+  # missing required formal is an EVALUATOR arity error and `tryEval` does not contain one — the
+  # same class of abort as calling a library entry with a formal it does not supply. `functionArgs`
+  # reports `false` for a formal with no default, so this says exactly which fields a caller may
+  # omit: `via` alone.
+  flake.tests.minting.test-both-endpoint-kinds-are-required-formals = {
+    expr = builtins.functionArgs genLink.entry;
+    expected = {
+      kind = false;
+      from = false;
+      fromKind = false;
+      to = false;
+      toKind = false;
+      via = true;
+    };
+  };
+  flake.tests.minting.test-a-row-is-built-from-identifiers-and-kinds = {
+    expr = genLink.entry {
+      kind = "hole";
+      from = "a/x";
+      fromKind = "aspect";
+      to = "b/y";
+      toKind = "aspect";
+      via = "dbreq";
+    };
+    expected = {
+      kind = "hole";
+      from = "a/x";
+      fromKind = "aspect";
+      to = "b/y";
+      toKind = "aspect";
+      via = "dbreq";
+    };
   };
 
   # ── THE MANIFEST CARRIES IDENTIFIERS ──
@@ -92,9 +153,18 @@ in
     expr = builtins.all (p: wired.nodes ? ${p}) (endpoints wired);
     expected = true;
   };
+  # Quantified over EVERY string field of every row, not only the endpoints — the endpoint kinds are
+  # bare kind names (`"aspect"`), and an identity would be the same name followed by a colon and a
+  # digest, so the predicate has to be able to tell those apart on any field.
   flake.tests.minting.test-no-manifest-row-carries-an-identity = {
-    expr = builtins.any (p: lib.hasPrefix "aspect:" p) (endpoints twoLabels);
+    expr = builtins.any (p: lib.hasPrefix "aspect:" p) (allRowStrings twoLabels);
     expected = false;
+  };
+  # CONTROL for the predicate above: it fires on a value that IS an identity, so the `false` is a
+  # measurement rather than a predicate that could not have matched.
+  flake.tests.minting.test-CONTROL-the-identity-predicate-fires = {
+    expr = lib.hasPrefix "aspect:" twoLabels.nodes."b/apps/app".identity;
+    expected = true;
   };
 
   # ── THE PASS IS DERIVED, AND IT GENUINELY STAGES ──

@@ -11,6 +11,7 @@
 {
   genLink,
   genMerge,
+  aspects,
   mkAspectRegistry,
 }:
 let
@@ -38,14 +39,16 @@ let
     };
   };
 
+  # `tree`, not `aspects` — the module formal `aspects` is the gen-aspects library, and shadowing it
+  # with an aspect tree is one edit away from a cell reading the wrong one.
   regOf =
-    aspects:
+    tree:
     mkAspectRegistry {
       inherit keySemantics;
-      modules = [ { config.aspects = aspects; } ];
+      modules = [ { config.aspects = tree; } ];
     };
-  srcOf = origin: aspects: {
-    registry = (regOf aspects).config.aspects;
+  srcOf = origin: tree: {
+    registry = (regOf tree).config.aspects;
     inherit keySemantics;
     inherit origin;
   };
@@ -60,10 +63,13 @@ let
       ];
     };
   };
+  # The requirer also INCLUDES the provider by key, so the federation carries both manifest row
+  # sorts — an `includes` edge and a `hole` filling — and a cell about rows sees both.
   requirer = {
     apps.app = {
       nixos = { };
       dbreq.requires = [ "read" ];
+      includes = [ (aspects.keyRef "a/apps/media/pg") ];
     };
   };
   # A node that satisfies its OWN requirement, so a self-filling reaches the mint rather than

@@ -278,32 +278,35 @@ let
       ) merged.graph.edges;
 
       # ── step 5: the manifest ──────────────────────────────────────────────────────────────────────
-      # Every row carries IDENTIFIERS. ADR-0016 ruling 5 rules the derived content-address INTERNAL
-      # ADDRESSING ONLY — consistent within an evaluation, with nothing durable depending on it
-      # across them — and this record is designed for a consumer to serialize to a `gen-link.lock`.
-      # A serialized lock carrying identities is durable cross-evaluation dependence on internal
-      # addressing, which is precisely and only what the ruling forbids. The identifiers ARE the
-      # readable coordinates a diff reads and a tool queries, and the identity rebuilds from them.
+      # Every row carries IDENTIFIERS AND KINDS, and never an identity. ADR-0016 ruling 5 rules the
+      # derived content-address INTERNAL ADDRESSING ONLY — consistent within an evaluation, with
+      # nothing durable depending on it across them — and this record is designed for a consumer to
+      # serialize to a `gen-link.lock`. A serialized lock carrying identities is durable
+      # cross-evaluation dependence on internal addressing, which is precisely and only what the
+      # ruling forbids. What the rows carry instead is the identity function's own INPUTS, from which
+      # the identity rebuilds — and the endpoint kinds are what keep that rebuild total once a
+      # federation mixes kinds, because the kind is the identity's tag prefix and no other field
+      # carries it once the identity stops being serialized.
       #
+      # Each endpoint's kind is read from the MINTING RUN's own node record — the same value that
+      # keyed that node's identity — rather than re-derived from anything here. A second derivation
+      # of one fact is how the two answers start disagreeing.
+      kindOf = identifier: minted.nodes.${identifier}.kind;
+      manifestRow =
+        kind: via: e:
+        manifest.entry {
+          inherit kind via;
+          inherit (e) from to;
+          fromKind = kindOf e.from;
+          toKind = kindOf e.to;
+        };
+
       # The hole rows are a rendering of the minting run's OWN edge rows rather than a second
       # derivation from the same wire: one row per relatum, carrying the label that keyed the
-      # identity. Two derivations of one fact is how the two answers start disagreeing.
+      # identity.
       manifestEntries = manifest.order (
-        (map (
-          e:
-          manifest.entry {
-            kind = "includes";
-            inherit (e) from to;
-          }
-        ) crossOriginEdges)
-        ++ (map (
-          e:
-          manifest.entry {
-            kind = "hole";
-            inherit (e) from to;
-            via = e.label;
-          }
-        ) minted.edges)
+        (map (manifestRow "includes" null) crossOriginEdges)
+        ++ (map (e: manifestRow "hole" e.label e) minted.edges)
       );
     in
     {

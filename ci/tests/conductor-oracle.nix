@@ -160,23 +160,33 @@ in
   # Instantiation identity end-to-end, RECONSTRUCTED rather than compared to itself. ADR-0016
   # ruling 4 gives the binding case whole — a kind whose identity keys are its relatum labels and
   # whose values are the relata's IDENTITIES — and the minting entry adds the node's own identifier
-  # under a reserved label. Rebuilding the digest from those three facts through the same authority
-  # says the wired node's identity really is that function of the filler, and it fails if the
-  # relatum's value were its identifier, if the label carried a prefix, or if a second gen-schema
-  # instance were computing either end.
-  flake.tests.conductor-oracle.test-identity-folds-the-relatum-identity = {
+  # under a reserved label. Rebuilding the digest from those facts through the same authority says
+  # the wired node's identity really is that function of the filler, and it fails if the relatum's
+  # value were its identifier, if the label carried a prefix, or if a second gen-schema instance
+  # were computing either end.
+  #
+  # ★★ THE KIND COMES FROM THE MANIFEST ROW, WHICH IS WHAT MAKES THAT FIELD MEASURED RATHER THAN
+  # DECLARED. The row's `fromKind` is fed straight into the authority as the minting kind, so a row
+  # carrying a kind the node was not minted under produces a different digest and this cell fails.
+  # It also exhibits the property the field exists for: the identity REBUILDS from a row plus the
+  # relatum's identity, with nothing read out of band — which is what the rows have to support once
+  # a federation mixes kinds, since the identity that carries the kind as its tag never serializes.
+  flake.tests.conductor-oracle.test-identity-rebuilds-from-the-manifest-row = {
     expr = appBound.identity;
     expected =
-      genSchema.hashIdentity "aspect"
+      let
+        row = builtins.head (builtins.filter (e: e.kind == "hole") result.manifest);
+      in
+      genSchema.hashIdentity row.fromKind
         [
           "identifier"
-          "dbreq"
+          row.via
         ]
         (
           k:
           {
-            identifier = appIdentifier;
-            dbreq = result.nodes.${pgIdentifier}.identity;
+            identifier = row.from;
+            ${row.via} = result.nodes.${row.to}.identity;
           }
           .${k}
         );

@@ -6,6 +6,8 @@ Cross-flake aspect federation: `link { sources, wire }` normalizes each source a
 
 A node is NAMED by its **identifier**, the origin-qualified reference (`"b/apps/app"`); its **identity** is the derived content-address and rides as a FIELD on the node. gen-link mints nothing itself and publishes no identity-computing function.
 
+★ **The federated reference grammar is RULED KIND-QUALIFIED** — `namespace.<kind-segment>.name`, one grammar with the local `den.aspects.name`, under which a cross-kind name collision is inexpressible by construction rather than policed. **This migration does not build it**: what ships here is the two-segment origin-qualified form above. The grammar is the future surface's law, recorded so a reader does not take today's form as the settled one.
+
 ## Not this library's job
 
 Quoted text is the owner's own `flake.nix` `description` field, verbatim.
@@ -76,12 +78,12 @@ Entry: `inputs.gen-link.lib` (flake), or `gen.lib.link` through the hub. Root `d
 
 | Export | Signature |
 |---|---|
-| `entry` | `{ kind, from, to, via ? null } -> manifestEntry` (`kind` ∈ `{ "includes", "hole" }`) |
+| `entry` | `{ kind, from, fromKind, to, toKind, via ? null } -> manifestEntry`. `kind` is the ROW's sort (∈ `{ "includes", "hole" }`); `fromKind`/`toKind` are the ENDPOINT NODES' kinds, a different vocabulary on a different substrate. All but `via` are REQUIRED — a defaulted endpoint kind would answer for a node whose kind nobody supplied |
 | `order` | `[ entry ] -> [ entry ]` (deterministic sort for diff stability) |
 | `link` | `{ sources, wire ? {} } -> { graph; manifest; nodes; bound; resolved }` |
 | `_scaffold` | `true` (a constant) |
 
-**`link` argument and return shape** (consumed/produced, not exports). Each `sources` entry is `{ registry; origin ? []; alias ? {}; keySemantics ? {}; }`. `wire` is `{ "<requirerRef>" = { <facet> = "<fillerRef>"; }; }`. The return record carries `graph` (the merged gen-scope graph, vertices = identifiers), `manifest` (ordered `{ kind; from; to; via }`, endpoints = **identifiers**), `nodes` (`{ <identifier> = { origin; node; identity }; }`), `bound` (`[ { identifier; identity; node; origin; relata } ]`), and `resolved` (`{ <requirerIdentifier> = [tag] | null; }`).
+**`link` argument and return shape** (consumed/produced, not exports). Each `sources` entry is `{ registry; origin ? []; alias ? {}; keySemantics ? {}; }`. `wire` is `{ "<requirerRef>" = { <facet> = "<fillerRef>"; }; }`. The return record carries `graph` (the merged gen-scope graph, vertices = identifiers), `manifest` (ordered `{ kind; from; fromKind; to; toKind; via }` — endpoints are **identifiers plus their node kinds**, never identities), `nodes` (`{ <identifier> = { origin; node; identity }; }`), `bound` (`[ { identifier; identity; node; origin; relata } ]`), and `resolved` (`{ <requirerIdentifier> = [tag] | null; }`).
 
 ## Entry points by task
 
@@ -124,7 +126,7 @@ All rows re-measured in this run at the revision this file ships with, over a fi
 | Three underscore-prefixed names are part of the public surface, not internals | `_scaffold` ⇒ `true`, plus `_hasRefPrefix` and `_recordHas`. Test: `test-lib-evaluates` (`ci/tests/smoke.nix`) reads `_scaffold` |
 | Seven names defined by the modules are **not** re-exported by `lib/default.nix` | `isNode`, `refPrefix` (`lib/normalize.nix:93,95`), `selfName` (`lib/ref.nix:30`), `facetKeys`, `isHoleValue` (`lib/facets.nix:35,37`), `toGraph`, `relabelFn` (`lib/rewrite.nix:97`); each `genLink ? <name>` ⇒ `false`. Positive control: `genLink ? link` ⇒ `true` |
 | ★★ **A REFUSAL IS A PROPERTY OF THE CALL ONLY FOR A CONSUMER THAT REACHES THE MINT.** On an ill-founded federation (a filling cycle), `attrNames result.nodes` ⇒ `true` and `deepSeq result.graph` ⇒ `true` — the vertex names and the merged graph evaluate cleanly and report nothing. Reading ANY node's `identity` ⇒ `false`, and `.manifest` ⇒ `false` | The identifiers are computed from the sources, so they are available before minting begins; the mint is forced by `.manifest` and by every `identity` field. Positive controls on the well-founded fixture: both ⇒ `true`. ⇒ a consumer that only enumerates vertex names sees a clean federation, and one that reads a manifest or an identity gets the named refusal |
-| `includes` manifest rows always carry `via = null`; only `kind = "hole"` rows name a facet | `lib/link.nix:182-189`, `lib/manifest.nix:7-21`; `map (e: { inherit (e) kind via; }) (filter (e: e.kind == "includes") wired.manifest)` ⇒ `[ { kind = "includes"; via = null; } ]` |
+| `includes` manifest rows always carry `via = null`; only `kind = "hole"` rows name a facet | `map (e: { inherit (e) kind via; }) (filter (e: e.kind == "includes") wired.manifest)` ⇒ `[ { kind = "includes"; via = null; } ]`. ★ Both row sorts DO carry `fromKind` and `toKind` — those are the endpoints' node kinds and are unconditional; `via` is the relation's label and only a hole has one |
 | `README.md:234-235` documents `cd ci && just ci`, but no Justfile exists | `git ls-files \| grep -ci justfile` ⇒ `0`; `find . -iname justfile -o -iname '*.just'` ⇒ 0 hits. Positive control, same `find` predicate over gen-select and gen-scope: `gen-select/examples/css-selectors/Justfile` |
 
 ## Theory

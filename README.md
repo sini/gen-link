@@ -181,6 +181,12 @@ An **identifier** is the name a node carries as a vertex: the origin-qualified r
 `"<origin>/<key>"`, with `[]` rendered `"self"`. It keys the node map, it is what an edge endpoint
 names, and it is what a `wire` entry writes. It is a string a reader can write by hand.
 
+★ **The federated reference grammar is ruled kind-qualified** — `namespace.<kind-segment>.name`,
+one grammar with the local `den.aspects.name`, so that a cross-kind name collision is inexpressible
+by construction rather than policed by a uniqueness check. That grammar is **not built here**: this
+migration ships the two-segment form above. It is recorded so the current form is not mistaken for
+the settled law.
+
 An **identity** is the derived content-address, minted once per node by gen-schema's `hashIdentity`
 and reached ONLY through gen-scope's minting entry. It rides as a FIELD on the node —
 `(link {…}).nodes."<identifier>".identity` — never as its name.
@@ -192,12 +198,19 @@ retired: all four minted whatever input they were handed with no membership test
 would have left the ill-founded instantiation expressible on the surface while it was inexpressible
 through `link`.
 
-**The manifest carries identifiers, never identities.** Ruling 5 rules the content-address internal
-addressing only — consistent within an evaluation, with nothing durable depending on it across
-them — and the manifest is designed for a consumer to serialize to a `gen-link.lock`. The rows are
-therefore the readable coordinates, which is also the more useful artefact: an identity is a
-computed value a human cannot read back, while the coordinates are the function's own INPUTS, so a
-tool can reproduce or query the output from the rows and the identity rebuilds from them.
+**The manifest carries identifiers and kinds, never identities.** Ruling 5 rules the content-address
+internal addressing only — consistent within an evaluation, with nothing durable depending on it
+across them — and the manifest is designed for a consumer to serialize to a `gen-link.lock`. The
+rows are therefore the readable coordinates, which is also the more useful artefact: an identity is
+a computed value a human cannot read back, while the coordinates are the function's own INPUTS, so
+a tool can reproduce or query the output from the rows and the identity rebuilds from them.
+
+Each endpoint carries its node's **kind** alongside its identifier, under `fromKind` / `toKind` —
+names deliberately distinct from the row's own `kind`, which means the row's sort (`"includes"` or
+`"hole"`) and is a property of the relation rather than of either endpoint. One string per endpoint
+is what keeps the rebuild total once a federation mixes kinds: an identity is `"<kind>:" + digest`,
+so the kind is only the tag prefix, and once the identity stops being serialized no other field
+carries it. Without it a consumer holding a row could not name the kind to mint with.
 
 ### References & Origin
 
@@ -230,7 +243,7 @@ tool can reproduce or query the output from the rows and the identity rebuilds f
 
 | Function | Signature | Semantics |
 |----------|-----------|-----------|
-| `entry` | `{ kind; from; to; via ? null } → manifestEntry` | Construct one manifest entry (`kind ∈ { "includes", "hole" }`). |
+| `entry` | `{ kind; from; fromKind; to; toKind; via ? null } → manifestEntry` | Construct one manifest entry. `kind` is the ROW's sort (`∈ { "includes", "hole" }`); `fromKind`/`toKind` are the endpoint NODES' kinds. Every field but `via` is required. |
 | `order` | `[ entry ] → [ entry ]` | Deterministic ordering for diff stability. |
 
 ## Testing

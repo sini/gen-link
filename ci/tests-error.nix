@@ -30,11 +30,19 @@
   lib,
   genLink,
   genMerge,
+  aspects,
   mkAspectRegistry,
   ...
 }:
 let
-  fixtures = import ./tests/_fixtures/link.nix { inherit genLink genMerge mkAspectRegistry; };
+  fixtures = import ./tests/_fixtures/link.nix {
+    inherit
+      genLink
+      genMerge
+      aspects
+      mkAspectRegistry
+      ;
+  };
   inherit (fixtures)
     linkManifest
     unwiredHoleRefusal
