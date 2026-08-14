@@ -8,7 +8,7 @@
   lock ? builtins.fromJSON (builtins.readFile ./flake.lock),
   fetch ? name: builtins.fetchTree (lock.nodes.${lock.nodes.root.inputs.${name}}.locked),
   prelude ? import "${fetch "gen-prelude"}/lib",
-  scope ? import "${fetch "gen-scope"}/lib" { inherit prelude; },
+  scope ? import "${fetch "gen-scope"}" { },
   resolve ? import "${fetch "gen-resolve"}" { },
   edge ? import "${fetch "gen-edge"}" { },
   schema ? import "${fetch "gen-schema"}" { inherit prelude; },
