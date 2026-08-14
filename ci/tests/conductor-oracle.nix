@@ -1,10 +1,12 @@
-# THE conductor oracle (design §Testing). Exercises gen-aspects (aspectId), gen-scope (overlay/gmap +
-# buildNodes/eval), gen-resolve (reference), gen-algebra (assertSatisfies), gen-schema (hashIdentity),
-# gen-edge (materialize) in ONE chain. A stub in any breaks it.
+# THE conductor oracle (design §Testing). Exercises gen-aspects (key/keyRef), gen-scope (overlay/gmap
+# + buildNodes/eval + mintStrata), gen-resolve (reference), gen-algebra (assertSatisfies), gen-schema
+# (hashIdentity, reached THROUGH the minting entry), gen-edge (materialize) in ONE chain. A stub in
+# any breaks it.
 {
   genLink,
   genEdge,
   genMerge,
+  genSchema,
   aspects,
   mkAspectRegistry,
   ...
@@ -83,10 +85,11 @@ let
     builtins.attrNames result.nodes
   );
 
-  # the bound requirer (B/app), whose id folds the wired hole.
+  # the bound requirer (B/app), whose identity folds the wired hole.
   appBound = builtins.head (builtins.filter (b: b.node.key == "apps/app") result.bound);
-  # B/app's (holeless) graph node id — the key `result.resolved` is indexed by.
-  appNodeId = genLink.nodeId [ "b" ] regB.config.aspects.apps.app;
+  # B/app's identifier — the vertex name, and the key `result.resolved` is indexed by.
+  appIdentifier = "b/apps/app";
+  pgIdentifier = "a/apps/media/pg";
 
   # step 3 negative: an unsatisfiable capability wire must throw. Project `.manifest` so tryEval FORCES
   # the lazy bound/type-check (the return record reaches WHNF without it — mirrors Task 9's `badWire`).
@@ -148,16 +151,35 @@ in
   # gen-resolve load-bearing: B/app's cross-origin include resolves (via `reference`) to A/pg's
   # capability tags. A stub `reference` (compute = _: _: null) => null => this fails.
   flake.tests.conductor-oracle.test-gen-resolve-resolves-provider = {
-    expr = result.resolved.${appNodeId};
+    expr = result.resolved.${appIdentifier};
     expected = [
       "read"
       "write"
     ];
   };
-  # instantiation identity end-to-end: the bound id folds the hole.
-  flake.tests.conductor-oracle.test-instantiation-folds-hole = {
-    expr = appBound.id == genLink.nodeId [ "b" ] appBound.node;
-    expected = false;
+  # Instantiation identity end-to-end, RECONSTRUCTED rather than compared to itself. ADR-0016
+  # ruling 4 gives the binding case whole — a kind whose identity keys are its relatum labels and
+  # whose values are the relata's IDENTITIES — and the minting entry adds the node's own identifier
+  # under a reserved label. Rebuilding the digest from those three facts through the same authority
+  # says the wired node's identity really is that function of the filler, and it fails if the
+  # relatum's value were its identifier, if the label carried a prefix, or if a second gen-schema
+  # instance were computing either end.
+  flake.tests.conductor-oracle.test-identity-folds-the-relatum-identity = {
+    expr = appBound.identity;
+    expected =
+      genSchema.hashIdentity "aspect"
+        [
+          "identifier"
+          "dbreq"
+        ]
+        (
+          k:
+          {
+            identifier = appIdentifier;
+            dbreq = result.nodes.${pgIdentifier}.identity;
+          }
+          .${k}
+        );
   };
   # 4: the linked node's class content materialized through gen-edge.
   flake.tests.conductor-oracle.test-materialize-through-gen-edge = {

@@ -35,7 +35,14 @@
 }:
 let
   fixtures = import ./tests/_fixtures/link.nix { inherit genLink genMerge mkAspectRegistry; };
-  inherit (fixtures) linkManifest unwiredHoleRefusal unknownTargetRefusal;
+  inherit (fixtures)
+    linkManifest
+    unwiredHoleRefusal
+    unknownTargetRefusal
+    unresolvedRelatumRefusal
+    ;
+
+  manifestOf = args: (genLink.link args).manifest;
 
   # The message, pinned to the byte. nixpkgs' metacharacter set is the one the pattern is read under.
   exactly = msg: "^" + lib.escapeRegex msg + "$";
@@ -73,11 +80,38 @@ in
       };
       expectedError = {
         type = "ThrownError";
-        msg = exactly (
-          unknownTargetRefusal "wire filler 'a/nonexistent'" (
-            genLink.keyRefTargetId (genLink.parseRef "a/nonexistent")
-          )
-        );
+        msg = exactly (unknownTargetRefusal "wire filler 'a/nonexistent'" "a/nonexistent");
+      };
+    };
+  };
+
+  # ── THE ILL-FOUNDED INSTANTIATION, WHICH USED TO MINT IN SILENCE ──
+  # Both cases below produced a well-formed `aspect` identity with no throw, no refusal and no
+  # diagnostic. Under ADR-0016 ruling 7 a relatum must be a node minted in a STRICTLY EARLIER pass;
+  # the first relates a node to itself and the second relates two nodes mutually, and neither has a
+  # stratum between them. The class is no longer detected here — it is INEXPRESSIBLE, because the
+  # frozen set a relatum resolves against holds strictly earlier passes only and nothing may seed it.
+  #
+  # ★ THE MESSAGE IS THE REASON THE CELLS ARE HERE RATHER THAN AS BOOLEANS. What the migration buys
+  # over the arm that kept content-addresses as vertex names is that the refusal NAMES A REFERENCE A
+  # READER CAN READ. Under that arm this same message would name a 64-hex digest and a reader would
+  # need a reverse lookup the system does not provide. A boolean cell cannot tell the two apart.
+  config.flake.testsError.minting-refusals = {
+    test-a-node-filling-its-own-hole-refuses-by-name = {
+      expr = manifestOf fixtures.selfFilling;
+      expectedError = {
+        type = "ThrownError";
+        msg = exactly (unresolvedRelatumRefusal "b/apps/app" "dbreq" "aspect" 0);
+      };
+    };
+    # Within a pass there is no order, so the members of a cycle are ordered by their own declared
+    # strings rather than by the order the wire was written in — which is what makes the refusal a
+    # property of the program instead of of its presentation.
+    test-a-filling-cycle-refuses-by-name = {
+      expr = manifestOf fixtures.cycle;
+      expectedError = {
+        type = "ThrownError";
+        msg = exactly (unresolvedRelatumRefusal "b/nb" "dbreq" "aspect" 0);
       };
     };
   };

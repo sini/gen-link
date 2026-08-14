@@ -2,16 +2,30 @@
 # nothing. It owns only the SEQUENCING plus origin / union / manifest; every computation is delegated:
 #   1. normalize + origin-rewrite each source          (normalize + rewrite; rides gen-scope gmap)
 #   2. disjoint union                                   (union; gen-scope overlay)
-#   3. bind holes (instantiation identity)              (wireLib; gen-schema hashIdentity)
+#   3. type-check each wired facet, then MINT the whole federation in staged passes (contract; scope)
 #   4. resolve cross-origin references over merged graph AS scope (gen-scope buildNodes/eval + gen-resolve reference)
-#   5. type-check each active cross-origin (wired) edge (contract; gen-algebra / gen-schema)
-#   6. record the manifest                              (manifest)
+#   5. record the manifest                              (manifest)
 # The importing flake joins as a source too (origin [] surfaced as `self`), so `self/*` resolves.
+#
+# ── WHY EVERY NODE IS AN EMITTER, AND NOT ONLY THE WIRED ONES ──
+# The minting entry resolves a relatum only against the FROZEN SET, which holds what strictly
+# earlier passes settled; a caller may not seed it, on the ground that a forgeable frozen set is a
+# rule authors must obey rather than a construction. So a filler must be an emitter — and since any
+# federation node may be named as a filler, EVERY node is one. There is no smaller migration: a
+# scheme minting only the wired nodes would need the rest already in the frozen set, and the only
+# door into that set is emission.
+#
+# ★★ THE CONSEQUENCE IS THAT THE VERTEX NAME IS NO LONGER A CONTENT-ADDRESS. This library used to
+# key its graph by `aspectId`'s digest and hand a SECOND digest to a wired node, so a node had two
+# values of one type and no name for the difference — `resolved` keyed one way and the bound record
+# the other, a trap this file used to ship. ADR-0016 ruling 5 separates IDENTIFIER (the vertex name,
+# the edge endpoint, what an emitter writes) from IDENTITY (the derived content-address), and the
+# separation is what the migration buys: the identifier is the federation reference, the identity is
+# minted once per node by the ONE authority, and a diagnostic names a reference a reader can read.
 {
   prelude,
   scope,
   resolve,
-  identity,
   ref,
   normalize,
   rewrite,
@@ -19,10 +33,13 @@
   facets,
   contract,
   manifest,
-  wireLib,
 }:
 let
-  refId = r: identity.keyRefTargetId (ref.parseRef r);
+  identifierOf = r: ref.refIdentifier (ref.parseRef r);
+
+  # The minting kind of every federation node. One kind, because the identity key set is the node's
+  # own identifier plus its relatum labels and nothing here relates two different sorts of thing.
+  aspectKind = "aspect";
 
   link =
     {
@@ -39,9 +56,10 @@ let
           alias = s.alias or { };
         }
       ) sources;
-      merged = union.disjointUnion stamped; # { graph; idToNode }
+      merged = union.disjointUnion stamped; # { graph; idToNode } — both keyed by IDENTIFIER
 
-      # per-source keySemantics keyed by origin label (for facet reads at the wire type-check).
+      # per-source keySemantics keyed by origin label (for facet reads at the wire type-check, and
+      # handed to the minting entry as its kind stratum).
       ksByOrigin = prelude.listToAttrs (
         map (s: {
           name = ref.renderOrigin (s.origin or [ ]);
@@ -51,22 +69,27 @@ let
       ksOf = origin: ksByOrigin.${ref.renderOrigin origin} or { };
 
       entryOf =
-        id: what:
-        merged.idToNode.${id}
-          or (throw "gen-link.link: ${what} resolves to id '${id}' which is not in the federation (check origin/path, or add its source)");
+        identifier: what:
+        merged.idToNode.${identifier}
+          or (throw "gen-link.link: ${what} names '${identifier}', which is not in the federation (check origin/path, or add its source)");
 
-      # ── step 5 (per wired edge) + step 3: type-check then bind holes ─────────────────────────────
-      bindOne =
+      # ── step 3a: type-check each wired facet, and read off the relata it contributes ────────────
+      wireOf =
         requirerRef: fillings:
         let
-          rEntry = entryOf (refId requirerRef) "wire target '${requirerRef}'";
+          identifier = identifierOf requirerRef;
+          rEntry = entryOf identifier "wire target '${requirerRef}'";
           rKs = ksOf rEntry.origin;
-          holeFillings = prelude.mapAttrs (_facet: filler: refId filler) fillings;
-          # discharge each filled facet contract (step 5).
+          # A hole filling contributes a relatum whose LABEL is the facet name, unprefixed, and whose
+          # VALUE is the filler's identifier. ADR-0024 as amended makes the string that keys the
+          # identity the same string an incident edge carries, so choosing a label is choosing a
+          # traversal token — and `hole:` names the mechanism rather than the relation.
+          relata = prelude.mapAttrs (_facet: filler: identifierOf filler) fillings;
+          # discharge each filled facet contract.
           typed = prelude.mapAttrsToList (
             facet: filler:
             let
-              fEntry = entryOf (refId filler) "wire filler '${filler}'";
+              fEntry = entryOf (identifierOf filler) "wire filler '${filler}'";
               edgeName = "${requirerRef}#${facet} <- ${filler}";
             in
             if facets.contractOf rKs facet == "refined" then
@@ -90,43 +113,119 @@ let
               }
           ) fillings;
         in
-        # deepSeq forces every contract check to RUN (its throws fire) before the node is bound.
-        builtins.deepSeq typed (
-          wireLib.bindNode {
-            inherit (rEntry) origin node;
-            ks = rKs;
-            inherit holeFillings;
+        # deepSeq forces every contract check to RUN (its throws fire) before the record is read.
+        builtins.deepSeq typed {
+          inherit identifier relata;
+          inherit (rEntry) origin node;
+          site = "wire entry '${requirerRef}'";
+        };
+      wired = prelude.mapAttrsToList wireOf wire;
+
+      # ── step 3b: the pass, DERIVED from the wire graph before any emitter exists ────────────────
+      # A node with no fillings takes pass 0; a node all of whose fillers are assigned takes one more
+      # than the greatest of theirs. The assignment is a pure function of { sources, wire }, so it is
+      # invariant under presentation order BY CONSTRUCTION rather than by an author's discipline —
+      # which is more than a user-declared index could offer, since only the wire graph determines
+      # the answer and restating a derivable fact is how the two copies drift.
+      #
+      # ★★ THE BOUND IS NOT DEFENSIVE PROGRAMMING. A wire cycle has no finite depth, so an unbounded
+      # fixpoint over one would diverge — and Nix's call-depth abort is not contained by `tryEval`.
+      # Today's behaviour for a cycle is a SILENT well-formed identity; replacing a silent wrong
+      # answer with an uncatchable hang is not an improvement. A node still unassigned when the bound
+      # is reached is emitted at pass 0, where its relatum cannot resolve and the engine refuses it
+      # BY NAME. This library detects no cycle: ADR-0033's `inexpressible, never detected` is
+      # honoured at the level that owns it.
+      fillersOf = prelude.foldl' (
+        acc: w: acc // { ${w.identifier} = (acc.${w.identifier} or [ ]) ++ (builtins.attrValues w.relata); }
+      ) { } wired;
+      identifiers = builtins.attrNames merged.idToNode;
+      assignPass =
+        assigned:
+        prelude.foldl' (
+          acc: id:
+          let
+            fillers = fillersOf.${id} or [ ];
+          in
+          if acc ? ${id} then
+            acc
+          else if !(builtins.all (f: acc ? ${f}) fillers) then
+            acc
+          else if fillers == [ ] then
+            acc // { ${id} = 0; }
+          else
+            acc
+            // {
+              ${id} = 1 + prelude.foldl' (m: f: if acc.${f} > m then acc.${f} else m) 0 fillers;
+            }
+        ) assigned identifiers;
+      passes = prelude.iterateBounded (a: builtins.deepSeq a a) assignPass { } identifiers;
+      passOf = id: passes.${id} or 0;
+
+      # ── step 3c: the mint ───────────────────────────────────────────────────────────────────────
+      # One emitter per wire entry, plus one per merged node no wire entry names. Two wire entries
+      # resolving to ONE identifier therefore arrive as two emitters of one node, which the engine's
+      # own merge rule collapses when they agree and refuses BY NAME when they do not — naming both
+      # wire keys. Nothing here checks for that collision; it is the engine's rule doing the work.
+      wiredIdentifiers = builtins.listToAttrs (
+        map (w: {
+          name = w.identifier;
+          value = true;
+        }) wired
+      );
+      mkEmitter = e: {
+        inherit (e) identifier relata site;
+        kind = aspectKind;
+        pass = passOf e.identifier;
+        # The federation's node values stay this library's own. The entry deep-forces its result, so
+        # carrying aspect content through it would force every option of every node — a cost that
+        # buys nothing here, because nothing across the seam reads a node.
+        content = { };
+      };
+      emitters =
+        map mkEmitter wired
+        ++ map (
+          id:
+          mkEmitter {
+            identifier = id;
+            relata = { };
+            site = "source '${ref.renderOrigin merged.idToNode.${id}.origin}'";
           }
-        );
-      boundNodes = prelude.mapAttrsToList bindOne wire;
+        ) (builtins.filter (id: !(wiredIdentifiers ? ${id})) identifiers);
+
+      minted = scope.mintStrata {
+        inherit emitters;
+        # The kind stratum, as an already-evaluated value. The entry forces it to weak head normal
+        # form and never reads it; `ksByOrigin` is a value by the time this runs, so the property the
+        # argument boundary exists for holds.
+        kinds = ksByOrigin;
+      };
 
       # ── unfilled-hole completeness guard over the MERGED requirer set (decision 7) ────────────────
-      # `bindOne`/`wire.nix` only reach requirers that `wire` NAMES, so a merged requirer carrying a
-      # `requires` facet with NO `wire` entry would land unbound and `link` would SUCCEED silently.
-      # Drive `facets.holesOf` over EVERY merged node and demand each declared hole is covered by a
-      # `wire` entry for that node's ref (keyed by the SAME ref↔id map `bindOne` uses via `refId`).
+      # `wireOf` only reaches requirers that `wire` NAMES, so a merged requirer carrying a `requires`
+      # facet with NO `wire` entry would land unbound and `link` would SUCCEED silently. Drive
+      # `facets.holesOf` over EVERY merged node and demand each declared hole is covered by a `wire`
+      # entry for that node's reference.
       wiredFacetsById = prelude.listToAttrs (
-        prelude.mapAttrsToList (requirerRef: fillings: {
-          name = refId requirerRef;
-          value = builtins.attrNames fillings;
-        }) wire
+        map (w: {
+          name = w.identifier;
+          value = builtins.attrNames w.relata;
+        }) wired
       );
       unwiredHoleGuard = prelude.mapAttrsToList (
-        id: en:
+        identifier: en:
         let
           holes = facets.holesOf (ksOf en.origin) en.node;
-          wired = wiredFacetsById.${id} or [ ];
-          unfilled = builtins.filter (h: !(builtins.elem h wired)) holes;
-          requirerRef = "${ref.renderOrigin en.origin}/${en.node.key}";
+          wiredFacets = wiredFacetsById.${identifier} or [ ];
+          unfilled = builtins.filter (h: !(builtins.elem h wiredFacets)) holes;
         in
         if unfilled == [ ] then
           null
         else
-          throw "gen-link.link: aspect '${requirerRef}' has unwired required facet(s): ${builtins.concatStringsSep ", " unfilled}. Wire each via `wire.\"${requirerRef}\".<facet> = <provider-ref>`."
+          throw "gen-link.link: aspect '${identifier}' has unwired required facet(s): ${builtins.concatStringsSep ", " unfilled}. Wire each via `wire.\"${identifier}\".<facet> = <provider-ref>`."
       ) merged.idToNode;
 
       # ── step 4: resolve cross-origin references over the merged graph AS the gen-scope scope ──────
-      # importIndex: each node id -> the ids it includes (from the merged graph edges). Keys are IDS.
+      # importIndex: each identifier -> the identifiers it includes (from the merged graph edges).
       importIndex = prelude.foldl' (
         acc: e: acc // { ${e.from} = (acc.${e.from} or [ ]) ++ [ e.to ]; }
       ) { } merged.graph.edges;
@@ -164,8 +263,8 @@ let
         };
         parseParent = _id: null;
       };
-      # per-requirer resolution result (keyed by the requirer's node id) — surfaced in the return so it
-      # is observable/assertable (decision 4). Only nodes WITH includes are queried.
+      # per-requirer resolution result (keyed by the requirer's identifier) — surfaced in the return
+      # so it is observable/assertable (decision 4). Only nodes WITH includes are queried.
       resolved = prelude.listToAttrs (
         map (fromId: {
           name = fromId;
@@ -178,7 +277,17 @@ let
         e: (entryOf e.from "edge source").origin != (entryOf e.to "include target").origin
       ) merged.graph.edges;
 
-      # ── step 6: the manifest ──────────────────────────────────────────────────────────────────────
+      # ── step 5: the manifest ──────────────────────────────────────────────────────────────────────
+      # Every row carries IDENTIFIERS. ADR-0016 ruling 5 rules the derived content-address INTERNAL
+      # ADDRESSING ONLY — consistent within an evaluation, with nothing durable depending on it
+      # across them — and this record is designed for a consumer to serialize to a `gen-link.lock`.
+      # A serialized lock carrying identities is durable cross-evaluation dependence on internal
+      # addressing, which is precisely and only what the ruling forbids. The identifiers ARE the
+      # readable coordinates a diff reads and a tool queries, and the identity rebuilds from them.
+      #
+      # The hole rows are a rendering of the minting run's OWN edge rows rather than a second
+      # derivation from the same wire: one row per relatum, carrying the label that keyed the
+      # identity. Two derivations of one fact is how the two answers start disagreeing.
       manifestEntries = manifest.order (
         (map (
           e:
@@ -187,27 +296,42 @@ let
             inherit (e) from to;
           }
         ) crossOriginEdges)
-        ++ prelude.concatMap (
-          bn:
-          prelude.mapAttrsToList (
-            facet: fid:
-            manifest.entry {
-              kind = "hole";
-              from = bn.id;
-              to = fid;
-              via = facet;
-            }
-          ) bn.holeFillings
-        ) boundNodes
+        ++ (map (
+          e:
+          manifest.entry {
+            kind = "hole";
+            inherit (e) from to;
+            via = e.label;
+          }
+        ) minted.edges)
       );
     in
     {
       graph = merged.graph;
-      # deepSeq forces the completeness guard to RUN (its named throw fires) before the manifest is
-      # observed — lazy-safe, like the per-edge/partial-wire guards folded into `boundNodes`.
-      manifest = builtins.deepSeq unwiredHoleGuard manifestEntries;
-      nodes = merged.idToNode;
-      bound = boundNodes;
+      # Both guards RUN before the manifest is observed: the completeness guard first, because an
+      # unwired hole is an authoring omission whose message names the repair, then the mint, whose
+      # refusal names an ill-founded relation. Forcing them here is lazy-safe and is what makes them
+      # properties of the CALL rather than of a consumer's reading pattern.
+      manifest = builtins.deepSeq unwiredHoleGuard (builtins.seq minted manifestEntries);
+      # Each node under its identifier, carrying the identity as a FIELD rather than as its name.
+      nodes = prelude.mapAttrs (
+        identifier: en: en // { inherit (minted.nodes.${identifier}) identity; }
+      ) merged.idToNode;
+      # What `wire` bound, with the identity the fillings folded into.
+      bound = map (
+        w:
+        {
+          inherit (w)
+            identifier
+            relata
+            origin
+            node
+            ;
+        }
+        // {
+          inherit (minted.nodes.${w.identifier}) identity;
+        }
+      ) wired;
       inherit resolved;
     };
 in

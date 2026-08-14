@@ -32,12 +32,15 @@ let
     normalized = norm;
     origin = [ "x" ];
   };
-  mainId = genLink.nodeId [ "x" ] reg.config.aspects.main;
-  helperId = genLink.nodeId [ "x" ] reg.config.aspects.helper;
-  yTargetId = genLink.keyRefTargetId (genLink.parseRef "y/apps/media/pg");
+  # The identifiers are written as LITERALS rather than derived from the library, which is the whole
+  # claim: a vertex name is now the readable origin-qualified reference, so a cell can spell it. A
+  # cell deriving them from the same constructor the relabel uses would agree with any constructor.
+  mainId = "x/main";
+  helperId = "x/helper";
+  yTargetId = "y/apps/media/pg";
 in
 {
-  flake.tests.rewrite.test-vertices-are-ids = {
+  flake.tests.rewrite.test-vertices-are-identifiers = {
     expr = builtins.elem mainId stamped.graph.vertices && builtins.elem helperId stamped.graph.vertices;
     expected = true;
   };
@@ -45,6 +48,8 @@ in
     expr = builtins.any (e: e.from == mainId && e.to == helperId) stamped.graph.edges;
     expected = true;
   };
+  # The by-key edge relabels to the target's identifier read from the keyRef's OWN origin, never the
+  # assigned one (decision 6) — `y`, not the `x` this source was stamped with.
   flake.tests.rewrite.test-bykey-edge-cross-origin = {
     expr = builtins.any (e: e.from == mainId && e.to == yTargetId) stamped.graph.edges;
     expected = true;
@@ -53,8 +58,8 @@ in
     expr = stamped.idToNode.${mainId}.origin;
     expected = [ "x" ];
   };
-  # alias genuinely changes identity: the OLD helper id must be gone and a genuinely NEW id present.
-  flake.tests.rewrite.test-alias-changes-id = {
+  # alias genuinely re-names the vertex: the OLD helper identifier must be gone and a new one present.
+  flake.tests.rewrite.test-alias-changes-identifier = {
     expr =
       let
         aliased = genLink.originStamp {

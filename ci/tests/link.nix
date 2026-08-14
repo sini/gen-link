@@ -75,7 +75,7 @@ let
   };
   holeEntries = builtins.filter (e: e.kind == "hole") result.manifest;
   includeEntries = builtins.filter (e: e.kind == "includes") result.manifest;
-  appNodeId = genLink.nodeId [ "b" ] regB.config.aspects.apps.app;
+  appIdentifier = "b/apps/app";
   badWire = builtins.tryEval (
     (genLink.link {
       sources = [
@@ -134,7 +134,7 @@ in
   # gen-resolve is load-bearing: B/app's cross-origin include resolves (via reference) to A/pg's
   # provided capability tags. A stubbed `reference` -> null here.
   flake.tests.link.test-resolution-through-gen-resolve = {
-    expr = result.resolved.${appNodeId};
+    expr = result.resolved.${appIdentifier};
     expected = [
       "read"
       "write"

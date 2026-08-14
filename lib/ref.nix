@@ -21,6 +21,26 @@ let
 
   # Surface rendering (manifests / errors / keySemantics keys): [] -> "self".
   renderOrigin = origin: if origin == [ ] then selfName else prelude.concatStringsSep "/" origin;
+
+  # ── THE IDENTIFIER ──
+  # ADR-0016 ruling 5 separates IDENTIFIER — the name a node carries as a vertex, what an edge
+  # endpoint names, what an emitter writes when it names a relatum — from IDENTITY, the derived
+  # content-address. The identifier of a federation node is its origin-qualified reference: the same
+  # string a `wire` key is written in, the same string `parseRef` consumes, and the same string
+  # `normalize` already builds behind the `@ref:` prefix. It is not invented here — it is the name
+  # this library was already speaking, promoted from a rendering to the addressing.
+  #
+  # `aspects.key` rather than the node's `.key` attribute, because that is the reading a reference
+  # joins against: a keyRef's key is `pathKey` over its path segments, and `aspects.key` is `pathKey`
+  # over the node's aspect chain. Reading `.key` here would join the two coordinates by a spelling
+  # that nothing keeps in step.
+  nodeIdentifier = origin: node: "${renderOrigin origin}/${aspects.key node}";
+
+  # The same coordinate read off a parsed reference. `refIdentifier (parseRef r)` and
+  # `nodeIdentifier` agree exactly where the federation's two id routes used to agree by hash
+  # equality — but by STRING equality, which is a property of the two constructions rather than of
+  # a lock collapsing two authorities onto one.
+  refIdentifier = r: "${renderOrigin r.origin}/${r.key}";
 in
 {
   inherit
@@ -28,5 +48,7 @@ in
     originLabel
     renderOrigin
     selfName
+    nodeIdentifier
+    refIdentifier
     ;
 }

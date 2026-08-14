@@ -7,7 +7,7 @@
 {
   prelude,
   scope,
-  identity,
+  ref,
   normalize,
 }:
 let
@@ -16,10 +16,10 @@ let
     nodesByKey: edges:
     scope.overlay (scope.vertices (builtins.attrNames nodesByKey)) (scope.edges edges);
 
-  # The relabel: local key -> federation id (aspectId under the assigned origin); @ref token -> the
-  # cross-origin target id (read from the keyRef's OWN origin, NEVER the assigned one — decision 6).
-  # gmap applies this to every vertex AND every edge endpoint uniformly, so by-value and by-key edges
-  # are relabeled identically.
+  # The relabel: local key -> the node's federation IDENTIFIER (origin-qualified reference under the
+  # assigned origin); @ref token -> the cross-origin target's identifier (read from the keyRef's OWN
+  # origin, NEVER the assigned one — decision 6). gmap applies this to every vertex AND every edge
+  # endpoint uniformly, so by-value and by-key edges are relabeled identically.
   relabelFn =
     {
       origin,
@@ -28,17 +28,17 @@ let
     }:
     k:
     if refByToken ? ${k} then
-      identity.keyRefTargetId refByToken.${k}
+      ref.refIdentifier refByToken.${k}
     else
-      identity.nodeId origin nodesByKey.${k};
+      ref.nodeIdentifier origin nodesByKey.${k};
 
   # Split an alias target ("apps/media/postgres") into { chain; last } so `identity.key` recomputes.
   splitSlash = s: builtins.filter (x: builtins.isString x && x != "") (builtins.split "/" s);
 
-  # Apply an alias to a node: override `name` + `meta.aspect-chain` so `aspects.aspectId` (which reads
-  # `identity.key` = pathKey ((meta.aspect-chain or []) ++ [name]), NOT `.key`) recomputes to the new
-  # path. Overriding `.key` alone is DEAD — aspectId never reads it. This makes the aliased id genuinely
-  # differ (Fix 3). `alias` is passed EXPLICITLY (it is `originStamp`'s formal, not in this outer `let`).
+  # Apply an alias to a node: override `name` + `meta.aspect-chain` so `aspects.key` (= pathKey
+  # ((meta.aspect-chain or []) ++ [name]), NOT `.key`) recomputes to the new path. Overriding `.key`
+  # alone is DEAD — the identifier never reads it. This makes the aliased node genuinely a different
+  # vertex (Fix 3). `alias` is passed EXPLICITLY (it is `originStamp`'s formal, not this outer `let`'s).
   aliasNode =
     alias: k: n:
     if !(alias ? ${k}) then
@@ -81,7 +81,7 @@ let
       graph = scope.gmap relabel (toGraph nodesByKey edges);
       idToNode = prelude.listToAttrs (
         prelude.mapAttrsToList (_k: n: {
-          name = identity.nodeId origin n;
+          name = ref.nodeIdentifier origin n;
           value = {
             inherit origin;
             node = n;

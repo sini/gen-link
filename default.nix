@@ -8,7 +8,13 @@
   lock ? builtins.fromJSON (builtins.readFile ./flake.lock),
   fetch ? name: builtins.fetchTree (lock.nodes.${lock.nodes.root.inputs.${name}}.locked),
   prelude ? import "${fetch "gen-prelude"}/lib",
-  scope ? import "${fetch "gen-scope"}" { },
+  # gen-scope's minting entry is where every federation node's identity comes from, so the authority
+  # it reaches must be the one this shim derived — not the one gen-scope's own lock would
+  # self-construct. Two instances are two content-address formulas for one node. They happen to agree
+  # at today's pins, which is exactly why the threading is here rather than a digest comparison: what
+  # makes the count one is the dataflow, and agreement between two instances is what a divergence
+  # looks like right up until the revision where it is not.
+  scope ? import "${fetch "gen-scope"}" { inherit prelude schema; },
   resolve ? import "${fetch "gen-resolve"}" { },
   edge ? import "${fetch "gen-edge"}" { },
   schema ? import "${fetch "gen-schema"}" { inherit prelude; },

@@ -17,7 +17,7 @@ let
     inherit
       prelude
       scope
-      identity
+      ref
       normalize
       ;
   };
@@ -31,7 +31,6 @@ let
       prelude
       scope
       resolve
-      identity
       ref
       normalize
       rewrite
@@ -40,7 +39,6 @@ let
       contract
       manifest
       ;
-    inherit wireLib;
   };
 in
 {

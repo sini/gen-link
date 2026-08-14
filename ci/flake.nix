@@ -6,13 +6,16 @@
     gen-schema.url = "github:sini/gen-schema";
     gen-algebra.url = "github:sini/gen-algebra";
 
-    # ONE gen-schema instance through the whole stack, mirroring the root flake: gen-link joins ids
-    # minted via gen-aspects' `aspectId` with ids minted via `schema.hashIdentity`, so two copies are
-    # two content-address formulas and every route-crossing lookup misses.
+    # EXACTLY ONE gen-schema node through the whole stack, mirroring the root flake: gen-aspects
+    # stamps every aspect and gen-scope's minting entry mints every federation node, so two copies
+    # are two content-address formulas for one node. The pair is the current discharge of that
+    # invariant; `tests/lock-shape.nix` is what asserts the invariant itself.
     gen-aspects.url = "github:sini/gen-aspects";
     gen-aspects.inputs.gen-schema.follows = "gen-schema";
 
     gen-scope.url = "github:sini/gen-scope";
+    gen-scope.inputs.gen-schema.follows = "gen-schema";
+
     gen-resolve.url = "github:sini/gen-resolve";
     gen-edge.url = "github:sini/gen-edge";
     # nixpkgs is the CI runner's dependency (nix-unit harness, treefmt) and supplies the `lib` the
