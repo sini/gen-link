@@ -44,7 +44,7 @@ gen-resolve  — reference + resolve/materialize                (edge resolution
 gen-edge     — (S,T,P,M) materialize                          (terminal move)
 
 gen-link (Class B) — federation conductor
-  depends on: gen-scope, gen-resolve, gen-edge, gen-schema, gen-algebra, gen-aspects (+ gen-prelude)
+  depends on: gen-scope, gen-resolve, gen-schema, gen-algebra, gen-aspects (+ gen-prelude)
   owns:       origin coordinate · disjoint-union+relabel · resolution manifest
   stores:     nothing (accessor pattern)
   knows:      nothing about NixOS / den / aspect semantics
@@ -68,7 +68,7 @@ Consumers (den-hoag, and any downstream flake) wire gen-link the way den wires g
 
 ## Usage
 
-gen-link is **Class B**: nixpkgs-lib-free, depending only on gen-prelude and six sibling `.lib` values, each self-wiring its own deps. The `lib/**` surface is pure list/attr combinators + builtins — no module system, no `nixpkgs.lib` (enforced by `ci/tests/purity.nix`). The flake exposes a single `.lib` value output.
+gen-link is **Class B**: nixpkgs-lib-free, depending only on gen-prelude and five sibling `.lib` values, each self-wiring its own deps. The `lib/**` surface is pure list/attr combinators + builtins — no module system, no `nixpkgs.lib` (enforced by `ci/tests/purity.nix`). The flake exposes a single `.lib` value output.
 
 ```nix
 # flake.nix

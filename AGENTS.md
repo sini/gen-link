@@ -19,11 +19,11 @@ Quoted text is the owner's own `flake.nix` `description` field, verbatim.
 | Aspect payload, the `keySemantics` grammar, the aspect-chain `key`, `keyRef` slash-splitting | `gen-aspects` — "gen-aspects: aspect-oriented composition types (pure-gen, re-hosted on gen-merge)". `parseRef` owns only the `self` ⟷ `[]` surface mapping (`lib/ref.nix:5-6`), and the identifier is built from `aspects.key` — `aspectId` is no longer called at all |
 | Algebraic-graph `overlay` / `gmap` / `vertices` / `edges`, and the scope evaluator (`buildNodes`, `eval`) | `gen-scope` — "gen-scope: demand-driven attribute grammar evaluator over algebraic scope graphs" |
 | Resolving an edge (forward `includes` nearest-binding) | `gen-resolve` — "gen-resolve — demand-driven higher-order RAG evaluator over algebraic scope graphs (Knuth 1968 attribute schedule + Vogt 1989 HOAG)" |
-| Materialization — moving class content into a class evaluation | `gen-edge` — "gen-edge — the content-movement contract: the (S,T,P,M) edge algebra, toposorted materialization fold, and the frozen edge-trace parity oracle". `gen-edge` is a declared input (`flake.nix:11`) that `lib/**` never imports; it is exercised only by `ci/tests/conductor-oracle.nix` |
+| Materialization — moving class content into a class evaluation | `gen-edge` — "gen-edge — the content-movement contract: the (S,T,P,M) edge algebra, toposorted materialization fold, and the frozen edge-trace parity oracle". `gen-edge` is **not** a gen-link input — `lib/**` reads nothing from it, so the root flake declares no dependency on it. It reaches this repository through `ci/flake.nix:20` alone, as the `genEdge` specialArg `ci/tests/conductor-oracle.nix` exercises |
 | Record algebra, capability satisfaction (`record.has` / `record.assertSatisfies`) | `gen-algebra` — "gen-algebra: pure Nix algebra — search monad, records, intensional functions, either" |
 | General utilities (gen-link is nixpkgs-lib-free; `flake.nix:4-6`) | `gen-prelude` — "gen-prelude: vendored, nixpkgs-lib-free pure utilities for the gen ecosystem" |
 | Module merge, `evalModuleTree`, `mkOption` — building the aspect registry gen-link ingests | `gen-merge` — "gen-merge — pure-Nix byte-mode module MERGE engine (evalModuleTree) for the pure-gen module system". Not a gen-link input; it is a `ci/flake.nix:5` input only |
-| Reachability, condensation, visibility queries over the merged graph | `gen-graph` — "gen-graph: accessor-based graph query combinators". Named in `README.md:42,64`; not a gen-link input (`flake.nix:7-15`) |
+| Reachability, condensation, visibility queries over the merged graph | `gen-graph` — "gen-graph: accessor-based graph query combinators". Named in `README.md:42,64`; not a gen-link input (`flake.nix:19-35`) |
 | Dataflow channels — the `pipe.channel` homonym, distinct from a keySemantics channel (`README.md:258`) | `gen-pipe` — "gen-pipe — scoped channels + dataflow algebra (map/filter/fold/scan/route/join/tee) with B5 determinism, provenance, dedup, and class-aware contributions" |
 | Any domain vocabulary (NixOS / home-manager / den keys) | the consuming flake — every facet and class key arrives as a per-source `keySemantics` parameter (`lib/link.nix:44-51`; `README.md:9`) |
 | Serializing the manifest to disk (a `gen-link.lock`) | the consuming flake — `lib/manifest.nix:3-4` states gen-link writes nothing |
@@ -41,7 +41,7 @@ Sweep of all 126 `flake.nix` files under `/home/sini/Documents/repos` (depth 6) 
 
 ## Exports
 
-Entry: `inputs.gen-link.lib` (flake), or `gen.lib.link` through the hub. Root `default.nix` is a **function** — `import ./gen-link { }` — whose named parameters (`prelude`, `scope`, `resolve`, `edge`, `schema`, `algebra`, `aspects`) default to the `flake.lock` pins and may each be overridden.
+Entry: `inputs.gen-link.lib` (flake), or `gen.lib.link` through the hub. Root `default.nix` is a **function** — `import ./gen-link { }` — whose named parameters (`prelude`, `scope`, `resolve`, `schema`, `algebra`, `aspects`) default to the `flake.lock` pins and may each be overridden.
 
 **References & origin** — `lib/ref.nix`
 

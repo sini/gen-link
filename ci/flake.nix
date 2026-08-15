@@ -44,7 +44,6 @@
         prelude = gen-prelude.lib;
         scope = gen-scope.lib;
         resolve = gen-resolve.lib;
-        edge = gen-edge.lib;
         schema = gen-schema.lib;
         algebra = gen-algebra.lib;
         inherit aspects;

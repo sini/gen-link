@@ -30,10 +30,12 @@
 # green. The one-instance property is held by construction in `default.nix`, and undoing it is a
 # reviewed source edit — that is the residual exposure, stated rather than guarded.
 #
-# `edge` HAS NO KEY, and that is a finding rather than an omission: the shim constructs gen-edge and
-# `../lib` takes it as a required formal, but no module reads it — every other occurrence of the
-# token in `lib/` is the English word. Breaking that shim leaves every key here green, which is the
-# measurement that says so. A cell cannot force what nothing reaches.
+# THE KEY SET IS THE SIBLING SET, and holding that an identity is what keeps this cell's coverage
+# total. The shim constructs exactly the siblings `../lib` reads, so every sibling it constructs has
+# a key here and a reader in the library. A declared dependency the library never read could not be
+# given a key — a cell cannot force what nothing reaches — so it would sit outside this cell's reach
+# while looking, from the formals alone, exactly like the ones inside it. That is how the retired
+# `edge` formal survived: the shim built it, `../lib` required it, and no key could witness either.
 #
 # WHY THE KEYS FORCE VALUES. Each key is a positive assertion that the shim constructs its sibling,
 # and forcing is how a construction is observed. The negative forms all pass while broken: an arity

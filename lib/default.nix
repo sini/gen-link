@@ -13,7 +13,6 @@
   prelude,
   scope,
   resolve,
-  edge,
   schema,
   algebra,
   aspects,

@@ -1,6 +1,6 @@
 # Standalone (non-flake) entry. Flake consumers should use the `.lib` output.
 #
-# gen-link is Class B: gen-prelude base + {gen-scope, gen-resolve, gen-edge, gen-schema, gen-algebra,
+# gen-link is Class B: gen-prelude base + {gen-scope, gen-resolve, gen-schema, gen-algebra,
 # gen-aspects}. This shim derives each from the pinned flake.lock (content-addressed via narHash, so
 # it stays pure). Each sibling flake `.lib` self-resolves its own deps, so we import each sibling's
 # standalone entry, which self-constructs. Pass any dep explicitly to override.
@@ -19,7 +19,6 @@
   # Left to self-construct it builds a second evaluator over a second authority, and what makes the
   # count one is the dataflow — not two pins that happen to agree.
   resolve ? import "${fetch "gen-resolve"}" { inherit scope; },
-  edge ? import "${fetch "gen-edge"}" { },
   schema ? import "${fetch "gen-schema"}" { inherit prelude; },
   algebra ? import "${fetch "gen-algebra"}/lib",
   aspects ? import "${fetch "gen-aspects"}" { },
@@ -30,7 +29,6 @@ import ./lib {
     prelude
     scope
     resolve
-    edge
     schema
     algebra
     aspects
