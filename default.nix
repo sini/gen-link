@@ -15,7 +15,10 @@
   # makes the count one is the dataflow, and agreement between two instances is what a divergence
   # looks like right up until the revision where it is not.
   scope ? import "${fetch "gen-scope"}" { inherit prelude schema; },
-  resolve ? import "${fetch "gen-resolve"}" { },
+  # gen-resolve reaches gen-scope, and the instance it reaches must be the one this shim derived.
+  # Left to self-construct it builds a second evaluator over a second authority, and what makes the
+  # count one is the dataflow — not two pins that happen to agree.
+  resolve ? import "${fetch "gen-resolve"}" { inherit scope; },
   edge ? import "${fetch "gen-edge"}" { },
   schema ? import "${fetch "gen-schema"}" { inherit prelude; },
   algebra ? import "${fetch "gen-algebra"}/lib",

@@ -18,8 +18,13 @@
   # keeps the property asserted when the set of doors changes.
   inputs = {
     gen-prelude.url = "github:sini/gen-prelude";
-    gen-resolve.url = "github:sini/gen-resolve";
     gen-edge.url = "github:sini/gen-edge";
+
+    # gen-resolve carries a gen-scope of its own, and that gen-scope now carries a gen-schema — a
+    # third door onto the identity authority, which neither entry below covers.
+    gen-resolve.url = "github:sini/gen-resolve";
+    gen-resolve.inputs.gen-scope.inputs.gen-schema.follows = "gen-schema";
+
     gen-schema.url = "github:sini/gen-schema";
     gen-algebra.url = "github:sini/gen-algebra";
 
