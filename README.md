@@ -119,11 +119,11 @@ link {
 **The six-step sequencing** (the only thing gen-link owns; every computation is delegated):
 
 1. **Normalize + origin-rewrite each source.** Ingest the registry into a source-relative graph (nodes keyed by `.key`; `includes` — by-value or by-key — extracted uniformly into id-edges), then rename every node to its federation **identifier** under the assigned origin and swap every edge endpoint — a uniform relabel over gen-scope `gmap`, no content re-evaluation. Per-node `alias` renames apply here.
-1. **Disjoint union.** `overlay` the origin-rewritten subgraphs (gen-scope). Origin makes the union collision-free by construction.
-1. **Mint, in staged passes.** Each `wire` entry contributes a RELATUM to its requirer — label the facet name, value the filler's identifier — and every merged node is emitted to gen-scope's `mintStrata` at a pass derived from the wire graph. A relatum resolves only against what strictly earlier passes settled, so an ill-founded filling (a node filling its own hole, or a cycle) cannot resolve and is refused by name. An unwired required facet is a separate, loud, named error.
-1. **Resolve cross-origin references.** Run gen-resolve `reference` (forward `includes` nearest-binding) over the merged graph *as the scope*. Resolution is active-edge-driven and lazy — gen-link does not scan.
-1. **Type-check each active cross-origin edge.** Capability → gen-algebra `record` (`requires ⊆ provides`); refined → gen-schema `checkRefinements`. A type failure is a loud, named error at the edge.
-1. **Record the manifest.** Every cross-origin `includes` edge and every wired hole is written to the manifest with both endpoints' ids — the `flake.lock` pattern (Dolstra 2006) applied to cross-origin edges.
+2. **Disjoint union.** `overlay` the origin-rewritten subgraphs (gen-scope). Origin makes the union collision-free by construction.
+3. **Mint, in staged passes.** Each `wire` entry contributes a RELATUM to its requirer — label the facet name, value the filler's identifier — and every merged node is emitted to gen-scope's `mintStrata` at a pass derived from the wire graph. A relatum resolves only against what strictly earlier passes settled, so an ill-founded filling (a node filling its own hole, or a cycle) cannot resolve and is refused by name. An unwired required facet is a separate, loud, named error.
+4. **Resolve cross-origin references.** Run gen-resolve `reference` (forward `includes` nearest-binding) over the merged graph *as the scope*. Resolution is active-edge-driven and lazy — gen-link does not scan.
+5. **Type-check each active cross-origin edge.** Capability → gen-algebra `record` (`requires ⊆ provides`); refined → gen-schema `checkRefinements`. A type failure is a loud, named error at the edge.
+6. **Record the manifest.** Every cross-origin `includes` edge and every wired hole is written to the manifest with both endpoints' ids — the `flake.lock` pattern (Dolstra 2006) applied to cross-origin edges.
 
 Steps 1–2 are the "disjoint-union + relabel" owned row; step 6 is the "resolution manifest" owned row; steps 3–5 delegate. gen-link mints nothing itself: what it owns of step 3 is the pass derivation and the emitter list. gen-link holds no graph between calls — the merged `graph` is a gen-scope value returned to the caller.
 
@@ -251,10 +251,10 @@ carries it. Without it a consumer holding a row could not name the kind to mint 
 The sufficiency claim — **gen-link sequences the real siblings and adds only origin + union + manifest** — is proven by the conductor oracle (`ci/tests/conductor-oracle.nix`), one chain end-to-end:
 
 1. Origin-union two toy collections that each define `apps/media/pg` → assert their federated nodes have **distinct** origin-qualified identifiers.
-1. Wire a capability edge and type-check it via gen-algebra; the unsatisfiable variant throws named.
-1. Resolve the cross-origin include via gen-resolve `reference` → the requirer sees the provider's tags (a stubbed `reference` returns null and the assertion catches it — gen-resolve is genuinely load-bearing).
-1. Rebuild the wired node's identity from its identifier and its relatum's identity through gen-schema directly, and assert the minting run produced the same digest.
-1. Materialize the linked node's class content through gen-edge.
+2. Wire a capability edge and type-check it via gen-algebra; the unsatisfiable variant throws named.
+3. Resolve the cross-origin include via gen-resolve `reference` → the requirer sees the provider's tags (a stubbed `reference` returns null and the assertion catches it — gen-resolve is genuinely load-bearing).
+4. Rebuild the wired node's identity from its identifier and its relatum's identity through gen-schema directly, and assert the minting run produced the same digest.
+5. Materialize the linked node's class content through gen-edge.
 
 If any sibling were stubbed, the chain breaks.
 
