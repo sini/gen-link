@@ -59,7 +59,7 @@ Consumers (den-hoag, and any downstream flake) wire gen-link the way den wires g
 | [gen-prelude](https://github.com/sini/gen-prelude) | Pure nixpkgs-lib-free utility base (builtins re-exports + vendored lib utils) |
 | [gen-algebra](https://github.com/sini/gen-algebra) | Pure primitives (record algebra, search monad, either, intensional identity) |
 | [gen-schema](https://github.com/sini/gen-schema) | Typed registries + `hashIdentity` / `checkRefinements` / `refined` |
-| [gen-aspects](https://github.com/sini/gen-aspects) | Aspect type system (`keySemantics` grammar, `aspectId`, `keyRef`) |
+| [gen-aspects](https://github.com/sini/gen-aspects) | Aspect type system (`keySemantics` grammar, the aspect-chain `key`, `keyRef`) |
 | [gen-scope](https://github.com/sini/gen-scope) | HOAG scope-graph evaluator + algebraic graphs (`overlay` / `gmap`) |
 | [gen-graph](https://github.com/sini/gen-graph) | Accessor-based graph query combinators (reachability, condensation) |
 | [gen-resolve](https://github.com/sini/gen-resolve) | Demand-driven RAG evaluator (`reference` — forward/reverse edge resolution) |
