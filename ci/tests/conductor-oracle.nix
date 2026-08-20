@@ -1,10 +1,10 @@
 # THE conductor oracle (design §Testing). Exercises gen-aspects (key/keyRef), gen-scope (overlay/gmap
 # + buildNodes/eval + mintStrata), gen-resolve (reference), gen-algebra (assertSatisfies), gen-schema
-# (hashIdentity, reached THROUGH the minting entry), gen-edge (materialize) in ONE chain. A stub in
+# (hashIdentity, reached THROUGH the minting entry), gen-view (viewRelation) in ONE chain. A stub in
 # any breaks it.
 {
   genLink,
-  genEdge,
+  genView,
   genMerge,
   genSchema,
   genIdentity,
@@ -103,35 +103,78 @@ let
     )).manifest
   );
 
-  # step 4: materialize the bound node's class content through gen-edge (a minimal accessor graph).
+  # step 4: materialize the bound node's class content through gen-view (a minimal scope graph).
+  #
+  # The content enters as an AUTHORED DATUM of the graph's data component. `data(G)` is a component
+  # of the graph value rather than an accessor, so what competes is exactly what an author wrote
+  # there and no step of the walk can put a datum where a later step reads one. The carrier is the
+  # linear one, under which a datum is one segment of the folded list — so the bound node's class
+  # content is one contribution and the channel's value is the one-element list holding it.
   appNixos = appBound.node.nixos;
-  edgeGraph = {
-    nodes = [ "app" ];
-    childrenOf = _: [ ];
-    parentOf = _: null;
-    isolatedAt = _: false;
-    channelsOf = id: if id == "app" then [ "nixos" ] else [ ];
-    edgesAt = _: [ ];
-    nameOf = id: {
-      opaque = id;
-    };
-    contentsOf = _id: _ch: [ ];
+
+  # L is non-empty by law (an alphabet with no letters admits no path), and `parent` is the letter
+  # this graph declares and leaves empty: one position, no incidence, so the only path from the root
+  # is the empty one and the datum is reached at distance 0.
+  viewLabels = genView.edgeLabels { letters = [ "parent" ]; };
+  viewAdmission = genView.labelWellFormedness {
+    alphabet = viewLabels;
+    expression = "parent*";
   };
-  cfg = genEdge.materialize {
-    edges = [
-      (genEdge.edge {
-        source = genEdge.sources.value appNixos;
-        target = genEdge.targets.root {
-          root = "app";
-          class = "nixos";
-        };
-        mode = "merge";
-      })
-    ];
-    projection = genEdge.project {
-      graph = edgeGraph;
-      root = "app";
+  viewOrder = genView.labelOrder {
+    alphabet = viewLabels;
+    layers = [ [ "parent" ] ];
+    endOfPath = -1;
+  };
+  appGraph = genView.scopeGraph {
+    carrier = genView.carrier {
+      labels = viewLabels;
+      relations = genView.relations { names = [ "content" ]; };
+      # Λ is empty: this graph holds no reified bindings, which is the ordinary case and lawful
+      # where an empty R would not be.
+      relatumLabels = genView.relatumLabels { names = [ ]; };
+      labelWellFormedness = viewAdmission;
+      labelOrder = viewOrder;
+      dataOrder = genView.dataOrder {
+        channel = "nixos";
+        keyOf = c: c.scope;
+      };
     };
+    scopes = [ "app" ];
+    edges.parent = _: [ ];
+    data = [
+      {
+        scope = "app";
+        relation = "content";
+        datum = [ appNixos ];
+      }
+    ];
+  };
+  cfg = genView.viewRelation {
+    definition = genView.compositions.channel {
+      channel = "nixos";
+      relation = "content";
+      root = "app";
+      direction = "outbound";
+      admission = viewAdmission;
+      order = viewOrder;
+      wellFormed = _: true;
+      tieSet = genView.tieSets.union;
+      empty = [ ];
+      combine = genView.combines.listAppend;
+      # No contribution here can collapse against another, and the arm is declared rather than
+      # defaulted because absence would be a decision nobody made.
+      dedup = genView.dedups.none;
+    };
+    graph = appGraph;
+    # No boundary marks. Written down rather than defaulted: this is the axis where silence must
+    # never read as access.
+    marks = _: [ ];
+  };
+  # Placement is a family BESIDE the declaration, never a field of it — which cell the result lands
+  # in is a placement fact.
+  appTarget = genView.placement.targets.root {
+    scope = "app";
+    channel = "nixos";
   };
 in
 {
@@ -192,9 +235,25 @@ in
           .${k}
         );
   };
-  # 4: the linked node's class content materialized through gen-edge.
-  flake.tests.conductor-oracle.test-materialize-through-gen-edge = {
-    expr = (cfg ? app) && (cfg.app ? nixos) && builtins.length cfg.app.nixos == 1;
-    expected = true;
+  # 4: the linked node's class content materialized through gen-view. Three facts, each the
+  # counterpart of one conjunct the released materialization was asserted by: WHICH cell the result
+  # lands in, WHERE the contribution was gathered, and WHAT the channel folded to. `writesOf` is the
+  # cell arm and it cross-checks the target's channel against the view relation's own name, so a
+  # target naming a cell this result does not produce is refused rather than compared.
+  flake.tests.conductor-oracle.test-materialize-through-gen-view = {
+    expr = {
+      cell = genView.writesOf {
+        relation = cfg;
+        target = appTarget;
+        mode = "merge";
+      };
+      scopes = map (c: c.scope) cfg.contributions;
+      value = cfg.value;
+    };
+    expected = {
+      cell = [ "app/nixos@output" ];
+      scopes = [ "app" ];
+      value = [ appNixos ];
+    };
   };
 }

@@ -35,7 +35,7 @@
     gen-resolve.url = "github:sini/gen-resolve";
     gen-resolve.inputs.gen-scope.inputs.gen-schema.follows = "gen-schema";
 
-    gen-edge.url = "github:sini/gen-edge";
+    gen-view.url = "github:sini/gen-view";
     # nixpkgs is the CI runner's dependency (nix-unit harness, treefmt) and supplies the `lib` the
     # test modules use for assertions + registry construction. The library itself (../lib) is
     # nixpkgs-lib-free (ci/tests/purity.nix enforces this).
@@ -53,7 +53,7 @@
       gen-aspects,
       gen-scope,
       gen-resolve,
-      gen-edge,
+      gen-view,
       ...
     }:
     let
@@ -97,7 +97,7 @@
           genMerge
           mkAspectRegistry
           ;
-        genEdge = gen-edge.lib;
+        genView = gen-view.lib;
         genAlgebra = gen-algebra.lib;
         genSchema = gen-schema.lib;
         genIdentity = gen-identity.lib;

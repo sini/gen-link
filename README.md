@@ -256,7 +256,7 @@ The sufficiency claim — **gen-link sequences the real siblings and adds only o
 2. Wire a capability edge and type-check it via gen-algebra; the unsatisfiable variant throws named.
 3. Resolve the cross-origin include via gen-resolve `reference` → the requirer sees the provider's tags (a stubbed `reference` returns null and the assertion catches it — gen-resolve is genuinely load-bearing).
 4. Rebuild the wired node's identity from its identifier and its relatum's identity through gen-schema directly, and assert the minting run produced the same digest.
-5. Materialize the linked node's class content through gen-edge.
+5. Materialize the linked node's class content through gen-view — the content is authored into the scope graph's data component, and the channel's `viewRelation` folds it into the cell `placement` names.
 
 If any sibling were stubbed, the chain breaks.
 
