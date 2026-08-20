@@ -25,10 +25,11 @@
 # formula that read no values at all.
 {
   genSchema,
+  genIdentity,
   ...
 }:
 let
-  inherit (genSchema) hashIdentity;
+  inherit (genIdentity) hashIdentity;
 
   # A refusal is a throw the caller can catch. `seq` forces past weak head normal form's boundary so
   # a refusal cannot survive as an unforced thunk and read as a mint.

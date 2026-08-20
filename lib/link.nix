@@ -229,7 +229,15 @@ let
       importIndex = prelude.foldl' (
         acc: e: acc // { ${e.from} = (acc.${e.from} or [ ]) ++ [ e.to ]; }
       ) { } merged.graph.edges;
-      roots = scope.buildNodes {
+      # ── gen-scope's ENTRY RECORD ──
+      # `buildRoots` returns `{ nodes, nodeOrder }` — the node set together with its DECLARED
+      # vertex order — and every evaluator entry takes that whole record rather than a bare node
+      # map. The two are near-indistinguishable to a caller and catastrophically different to an
+      # enumerating read: handed a bare map, `allNodes` and friends answer with the record's own
+      # key names and only a lookup of a known id is loud. Making the record the input TYPE is what
+      # makes that call unwritable, so this library passes the record through rather than unwrapping
+      # it. (`buildNodes` is a tombstone that says the same thing.)
+      scopeRoots = scope.buildRoots {
         importGraph = merged.graph;
         # each node's decls carry its capability PROVIDES so the forward query resolves a requirer
         # (which provides nothing => local null) THROUGH its include edge to the provider.
@@ -240,7 +248,7 @@ let
         }) merged.idToNode;
       };
       scopeSelf = scope.eval {
-        inherit roots;
+        scope = scopeRoots;
         attributes = {
           children = _self: _id: { };
           imports = _self: id: importIndex.${id} or [ ];

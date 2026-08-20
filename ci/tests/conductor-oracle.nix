@@ -7,6 +7,7 @@
   genEdge,
   genMerge,
   genSchema,
+  genIdentity,
   aspects,
   mkAspectRegistry,
   ...
@@ -177,7 +178,7 @@ in
       let
         row = builtins.head (builtins.filter (e: e.kind == "hole") result.manifest);
       in
-      genSchema.hashIdentity row.fromKind
+      genIdentity.hashIdentity row.fromKind
         [
           "identifier"
           row.via

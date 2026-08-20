@@ -1,4 +1,5 @@
-# THE LOCK-SHAPE INVARIANT — each of this repository's locks resolves to EXACTLY ONE gen-schema node.
+# THE LOCK-SHAPE INVARIANT — each of this repository's locks resolves to EXACTLY ONE gen-schema
+# node AND exactly one gen-identity node.
 #
 # ★★★ WHY THIS IS AN INVARIANT AND NOT A LANDING-TIME INSPECTION. Both flakes carry a `follows` pair
 # collapsing gen-aspects' and gen-scope's gen-schema onto the root's, and it would be easy to read
@@ -9,11 +10,23 @@
 # enters through a door the pair does not cover. A `jq` run at landing would have passed once and
 # never run again; this cell fails on that future bump.
 #
-# ★★ WHY IT MATTERS AT ALL. Two gen-schema instances are two content-address formulas for one node.
-# gen-aspects supplies the coordinate this library keys its graph by, and gen-scope's minting entry
-# mints every federation node's identity — so under two formulas the identity a node carries and the
-# identity a relatum resolves to are computed by different functions, and nothing says so. That
-# failure has shipped in this ecosystem once already.
+# ★★ WHY IT MATTERS, AND IT IS NOW TWO REASONS OVER TWO LABELS — the invariant SPLIT rather than
+# moved. The content-address formula left gen-schema for gen-identity, a dependency-free leaf, so
+# the single sentence that used to cover both halves no longer does:
+#
+#   • at `gen-identity` — two instances are two ENCODING formulas. Two nodes minted through
+#     different pins can carry digests that differ while naming the same value, so the identity a
+#     node carries and the identity a relatum resolves to are computed by different functions and
+#     nothing says so. That failure has shipped in this ecosystem once already.
+#   • at `gen-schema` — two instances remain two REFLECTION formulas. `isPrimitiveOption` decides
+#     which of a kind's options count as identity keys, and `identityHashForKind` must agree with
+#     what `mkIdentityModule` stamped. Disagreement there is SILENT, because both answers are
+#     well-formed hashes over the same encoder.
+#
+# gen-aspects supplies the coordinate this library keys its graph by and gen-scope's minting entry
+# mints every federation node's identity, so both labels reach the same nodes by different routes.
+# The existing arm keeps its subject and loses only its stated reason; the new arm is not a copy of
+# it.
 #
 # THE COUNT IS OF DISTINCT NODES REACHED UNDER AN INPUT LABELLED `gen-schema`, WALKED FROM `.root`,
 # never of lock entries whose key spelling matches — see `_fixtures/lock-walk.nix` for why the two
@@ -37,6 +50,24 @@ let
   # A counter that reported 1 because it cannot see a second instance would pass this suite forever.
   # Redirecting gen-aspects' `gen-schema` input away from the followed node makes the walk reach two
   # DISTINCT nodes under that label, and the count must move. Nothing about the real lock changes.
+  # The gen-identity arming is written separately rather than parameterised over the label: the two
+  # invariants have different reasons, and a shared helper would invite a later reader to assume one
+  # arming covers both when only its label differs.
+  armedIdentity =
+    lock:
+    walkOf (
+      lock
+      // {
+        nodes = lock.nodes // {
+          gen-aspects = lock.nodes.gen-aspects // {
+            inputs = lock.nodes.gen-aspects.inputs // {
+              gen-identity = lock.nodes.root.inputs.gen-prelude;
+            };
+          };
+        };
+      }
+    );
+
   armed =
     lock:
     walkOf (
@@ -67,6 +98,29 @@ in
   flake.tests.lock-shape.test-ci-lock-resolves-one-gen-schema = {
     expr = ci.countUnder "gen-schema";
     expected = 1;
+  };
+
+  flake.tests.lock-shape.test-root-lock-resolves-one-gen-identity = {
+    expr = root.countUnder "gen-identity";
+    expected = 1;
+  };
+  flake.tests.lock-shape.test-ci-lock-resolves-one-gen-identity = {
+    expr = ci.countUnder "gen-identity";
+    expected = 1;
+  };
+
+  # The gen-identity counter is armed on its own terms: a counter that reported 1 because it cannot
+  # see a second ENCODING instance would pass forever, and the gen-schema arming below says nothing
+  # about it.
+  flake.tests.lock-shape.test-arming-a-second-identity-instance-is-counted = {
+    expr = [
+      ((armedIdentity rootLock).countUnder "gen-identity")
+      ((armedIdentity ciLock).countUnder "gen-identity")
+    ];
+    expected = [
+      2
+      2
+    ];
   };
 
   flake.tests.lock-shape.test-arming-a-second-instance-is-counted = {

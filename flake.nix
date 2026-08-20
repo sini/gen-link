@@ -32,6 +32,16 @@
 
     gen-aspects.url = "github:sini/gen-aspects";
     gen-aspects.inputs.gen-schema.follows = "gen-schema";
+
+    # ★ THE MINT IS ITS OWN DOOR NOW, AND IT NEEDS THE SAME COLLAPSE. The content-address FORMULA
+    # moved out of gen-schema into a dependency-free leaf, so "one gen-schema" no longer implies
+    # one encoding: gen-schema, gen-scope and gen-aspects each carry a gen-identity of their own,
+    # and two of those are two formulas for one node. The follows pairs below are that property's
+    # current discharge, exactly as the gen-schema pairs are for reflection.
+    gen-identity.url = "github:sini/gen-identity";
+    gen-schema.inputs.gen-identity.follows = "gen-identity";
+    gen-scope.inputs.gen-identity.follows = "gen-identity";
+    gen-aspects.inputs.gen-identity.follows = "gen-identity";
   };
 
   outputs =
