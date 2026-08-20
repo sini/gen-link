@@ -14,7 +14,7 @@ Quoted text is the owner's own `flake.nix` `description` field, verbatim.
 
 | Responsibility | Owner |
 |---|---|
-| Hashing an identity (`hashIdentity`), refined types, `checkRefinements` | `gen-schema` — "gen-schema: typed record registry with extension points for the pure-gen module system". gen-link never calls `hashIdentity` **or** `sha256`: `git grep -c hashIdentity -- lib` ⇒ no match, and the authority reaches the minting run through `gen-scope`'s own assembly. `ci/tests/authority.nix` asserts the refusals that authority owes |
+| Refined types, `checkRefinements` | `gen-schema` — "gen-schema: typed record registry with extension points for the pure-gen module system". gen-link never calls `hashIdentity` **or** `sha256`: `git grep -c hashIdentity -- lib` ⇒ no match, and the authority reaches the minting run through `gen-scope`'s own assembly. `ci/tests/authority.nix` asserts the refusals that authority owes |
 | Minting an identity, the staged pass, the frozen set, the unresolved-relatum refusal | `gen-scope` — via `mintStrata`. gen-link supplies emitters and reads back `{ nodes; edges; strata; unrun }`; it re-exports no `gen-scope` name and publishes no view of the frozen set |
 | Aspect payload, the `keySemantics` grammar, the aspect-chain `key`, `keyRef` slash-splitting | `gen-aspects` — "gen-aspects: aspect-oriented composition types (pure-gen, re-hosted on gen-merge)". `parseRef` owns only the `self` ⟷ `[]` surface mapping (`lib/ref.nix:5-6`), and the identifier is built from `aspects.key` — `aspectId` is no longer called at all |
 | Algebraic-graph `overlay` / `gmap` / `vertices` / `edges`, and the scope evaluator (`buildNodes`, `eval`) | `gen-scope` — "gen-scope: demand-driven attribute grammar evaluator over algebraic scope graphs" |

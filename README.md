@@ -36,7 +36,8 @@ A collection of aspects is a **labeled graph, not a tree of values** (Néron 201
 ```
 gen-prelude / gen-merge         (pure base — builtins + byte-mode module merge)
 gen-algebra  — record algebra: has / assertSatisfies         (capability check)
-gen-schema   — hashIdentity, checkRefinements, refined       (identity + contracts)
+gen-identity — hashIdentity                                  (the one mint)
+gen-schema   — checkRefinements, refined                     (contracts)
 gen-aspects  — keySemantics grammar, aspect identity          (aspect payload)
 gen-scope    — algebraic-graph union/query (Mokhov 2017)      (graph primitives)
 gen-graph    — reachability / condensation                    (visibility)
@@ -58,7 +59,8 @@ Consumers (den-hoag, and any downstream flake) wire gen-link the way den wires g
 |---------|------|
 | [gen-prelude](https://github.com/sini/gen-prelude) | Pure nixpkgs-lib-free utility base (builtins re-exports + vendored lib utils) |
 | [gen-algebra](https://github.com/sini/gen-algebra) | Pure primitives (record algebra, search monad, either, intensional identity) |
-| [gen-schema](https://github.com/sini/gen-schema) | Typed registries + `hashIdentity` / `checkRefinements` / `refined` |
+| [gen-identity](https://github.com/sini/gen-identity) | The substrate's one identity mint — `hashIdentity` |
+| [gen-schema](https://github.com/sini/gen-schema) | Typed registries + `checkRefinements` / `refined` |
 | [gen-aspects](https://github.com/sini/gen-aspects) | Aspect type system (`keySemantics` grammar, the aspect-chain `key`, `keyRef`) |
 | [gen-scope](https://github.com/sini/gen-scope) | HOAG scope-graph evaluator + algebraic graphs (`overlay` / `gmap`) |
 | [gen-graph](https://github.com/sini/gen-graph) | Accessor-based graph query combinators (reachability, condensation) |
@@ -187,7 +189,7 @@ by construction rather than policed by a uniqueness check. That grammar is **not
 migration ships the two-segment form above. It is recorded so the current form is not mistaken for
 the settled law.
 
-An **identity** is the derived content-address, minted once per node by gen-schema's `hashIdentity`
+An **identity** is the derived content-address, minted once per node by gen-identity's `hashIdentity`
 and reached ONLY through gen-scope's minting entry. It rides as a FIELD on the node —
 `(link {…}).nodes."<identifier>".identity` — never as its name.
 

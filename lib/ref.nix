@@ -16,7 +16,8 @@ let
     in
     if r.origin == [ selfName ] then r // { origin = [ ]; } else r;
 
-  # The origin label datum hashIdentity hashes (design §Identity): the "/"-joined origin list.
+  # The origin label datum gen-identity's `hashIdentity` hashes (design §Identity): the "/"-joined
+  # origin list.
   originLabel = origin: prelude.concatStringsSep "/" origin;
 
   # Surface rendering (manifests / errors / keySemantics keys): [] -> "self".
