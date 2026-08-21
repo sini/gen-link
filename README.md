@@ -42,7 +42,7 @@ gen-aspects  — keySemantics grammar, aspect identity          (aspect payload)
 gen-scope    — algebraic-graph union/query (Mokhov 2017)      (graph primitives)
 gen-graph    — reachability / condensation                    (visibility)
 gen-resolve  — reference + resolve/materialize                (edge resolution)
-gen-edge     — (S,T,P,M) materialize                          (terminal move)
+gen-view     — viewRelation + placement                       (terminal move)
 
 gen-link (Class B) — federation conductor
   depends on: gen-scope, gen-resolve, gen-schema, gen-algebra, gen-aspects (+ gen-prelude)
@@ -65,7 +65,7 @@ Consumers (den-hoag, and any downstream flake) wire gen-link the way den wires g
 | [gen-scope](https://github.com/sini/gen-scope) | HOAG scope-graph evaluator + algebraic graphs (`overlay` / `gmap`) |
 | [gen-graph](https://github.com/sini/gen-graph) | Accessor-based graph query combinators (reachability, condensation) |
 | [gen-resolve](https://github.com/sini/gen-resolve) | Demand-driven RAG evaluator (`reference` — forward/reverse edge resolution) |
-| [gen-edge](https://github.com/sini/gen-edge) | (S,T,P,M) materialize — the terminal move into a class evaluation |
+| [gen-view](https://github.com/sini/gen-view) | `viewRelation` + `placement` — the terminal move into a class evaluation. It replaced the retired gen-edge `(S,T,P,M)` algebra at this repository's one call site (the conductor oracle) before ADR-0010 §3's retirement landed, and reaches here through `ci/flake.nix` alone — `lib/**` reads nothing from it |
 | [gen-link](https://github.com/sini/gen-link) | **This lib** — cross-flake aspect federation conductor |
 
 ## Usage
