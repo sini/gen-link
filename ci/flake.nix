@@ -25,16 +25,16 @@
     gen-scope.inputs.gen-identity.follows = "gen-identity";
     gen-aspects.inputs.gen-identity.follows = "gen-identity";
 
-    # ★ AND gen-resolve CARRIES A gen-scope OF ITS OWN, WHICH NOW CARRIES A gen-schema — a third
-    # door onto the reflection authority that neither pair above covers. `tests/lock-shape.nix`
-    # named this door before it opened ("the day gen-resolve bumps to a gen-scope that carries a
-    # gen-schema input, a second identity authority enters through a door the pair does not
-    # cover") and FAILED on the bump that opened it, which is what an invariant is for as against
-    # a one-off inspection at landing. The root flake already carries the same line; this mirrors
-    # it, and the collapse is onto the same node rather than onto a second pin of it.
-    gen-resolve.url = "github:sini/gen-resolve";
-    gen-resolve.inputs.gen-scope.inputs.gen-schema.follows = "gen-schema";
-
+    # ★ gen-view SUPPLIES THE REFERENCE-RESOLUTION CONSTRUCT AND OPENS NO NEW DOOR ONTO EITHER
+    # AUTHORITY. Its lock holds exactly three nodes (root, gen-prelude, gen-graph), so it reaches
+    # neither gen-schema nor gen-identity and owes no `follows` pair; `tests/lock-shape.nix`
+    # re-measures the counts rather than trusting that.
+    #
+    # ★★ IT REPLACED gen-resolve HERE, AND THAT CLOSED A DOOR RATHER THAN OPENING ONE. gen-resolve
+    # carried a gen-scope of its own which had acquired a gen-schema — a third door onto the
+    # reflection authority that neither pair above covered, which `tests/lock-shape.nix` named
+    # before it opened and then FAILED on when the bump opened it. That is what an invariant is for
+    # as against a one-off inspection at landing; the door is now simply gone.
     gen-view.url = "github:sini/gen-view";
     # nixpkgs is the CI runner's dependency (nix-unit harness, treefmt) and supplies the `lib` the
     # test modules use for assertions + registry construction. The library itself (../lib) is
@@ -52,7 +52,6 @@
       gen-algebra,
       gen-aspects,
       gen-scope,
-      gen-resolve,
       gen-view,
       ...
     }:
@@ -62,7 +61,7 @@
       genLink = import ../lib {
         prelude = gen-prelude.lib;
         scope = gen-scope.lib;
-        resolve = gen-resolve.lib;
+        view = gen-view.lib;
         schema = gen-schema.lib;
         algebra = gen-algebra.lib;
         inherit aspects;

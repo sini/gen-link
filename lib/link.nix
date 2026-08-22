@@ -3,7 +3,8 @@
 #   1. normalize + origin-rewrite each source          (normalize + rewrite; rides gen-scope gmap)
 #   2. disjoint union                                   (union; gen-scope overlay)
 #   3. type-check each wired facet, then MINT the whole federation in staged passes (contract; scope)
-#   4. resolve cross-origin references over merged graph AS scope (gen-scope buildNodes/eval + gen-resolve reference)
+#   4. resolve cross-origin references over merged graph AS scope (gen-scope buildRoots/eval +
+#      gen-view referenceResolution, whose query authority is that same gen-scope)
 #   5. record the manifest                              (manifest)
 # The importing flake joins as a source too (origin [] surfaced as `self`), so `self/*` resolves.
 #
@@ -25,7 +26,7 @@
 {
   prelude,
   scope,
-  resolve,
+  view,
   ref,
   normalize,
   rewrite,
@@ -252,21 +253,35 @@ let
         attributes = {
           children = _self: _id: { };
           imports = _self: id: importIndex.${id} or [ ];
-          # gen-resolve reference (forward `includes` nearest-binding — Hedin 2000): resolves a node's
-          # nearest cross-origin PROVIDER's capability tags. The requirer provides nothing (local null),
-          # so resolution walks the include edge to the provider. A stubbed `reference` (compute = _: _:
-          # null) makes `resolved` null, which the link/oracle assertions catch — gen-resolve is genuinely
-          # load-bearing.
+          # gen-view's reference resolution (Néron et al. 2015 rule (X), the forward arm over the
+          # include relation): resolves a node's nearest cross-origin PROVIDER's capability tags.
+          # The requirer provides nothing, so it is not a binding and resolution walks the include
+          # edge to the provider. A stubbed construct (`compute = _: _: null`) makes `resolved`
+          # null, which the link/oracle assertions catch — the construct is genuinely load-bearing.
+          #
+          # ★ THE QUERY AUTHORITY IS INJECTED HERE, and it is the SAME `scope` this evaluator is
+          # built from. gen-view holds no evaluator of its own, so the construct declares the query
+          # and this library supplies the authority that answers it.
+          #
+          # ★★ THE THREE DISCIPLINE FLAGS ARE WRITTEN DOWN, AND THAT IS THE POINT OF THE MIGRATION.
+          # They are set at exactly the values the delegate's defaults were silently supplying, so
+          # this is a re-spelling and not a semantics change — but a default is a decision nobody
+          # made and nobody can see, and D < I < P and the import closure are now decided IN THE
+          # DECLARATION rather than three libraries away.
+          #
+          # ★ `wellFormed` AND `project` ARE TWO FIELDS BECAUSE THE DEFINING QUERY HAS TWO
+          # OPERATORS. The predecessor fused them into one `select` that used `null` for both "not
+          # a binding here" and "the value", so a provider whose tags were legitimately null was
+          # indistinguishable from one that provided nothing.
           resolvedProvides =
-            (resolve.reference {
+            (view.referenceResolution {
+              engine = scope;
               name = "resolvedProvides";
-              select =
-                n:
-                let
-                  p = n.decls.provided or [ ];
-                in
-                if p == [ ] then null else p;
-              target = "includes";
+              wellFormed = n: (n.decls.provided or [ ]) != [ ];
+              project = n: n.decls.provided;
+              localShadowsImport = true;
+              importShadowsParent = true;
+              transitiveImports = false;
             }).compute;
         };
         parseParent = _id: null;

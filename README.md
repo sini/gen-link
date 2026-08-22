@@ -6,7 +6,7 @@ Cross-flake aspect federation over origin-labeled subgraphs, implemented as a pu
 
 gen-link lets a downstream flake reuse aspects and registry components published by an *external* flake — rescoping them, aliasing individual nodes, and wiring cross-origin references that are pinned and diffable the way `flake.lock` pins inputs. A flake exports a subgraph of aspects; another flake imports it, links it against its own graph, and materializes the result.
 
-gen-link is a **Class-B conductor** in the gen-resolve sense: it owns only *sequencing* plus three genuinely-new coordinates — an **origin coordinate**, a **disjoint-union-with-relabel** over origin-labeled subgraphs, and a **resolution manifest** — and **delegates every computation** to an existing gen sibling. It never hashes an identity (gen-schema does), never resolves an edge (gen-resolve does), never checks a contract (gen-algebra / gen-schema do), never unions raw graphs (gen-scope does), never materializes (gen-edge does). It stores nothing between calls and carries no domain knowledge (NixOS, home-manager, den).
+gen-link is a **Class-B conductor** in the gen-resolve sense: it owns only *sequencing* plus three genuinely-new coordinates — an **origin coordinate**, a **disjoint-union-with-relabel** over origin-labeled subgraphs, and a **resolution manifest** — and **delegates every computation** to an existing gen sibling. It never hashes an identity (gen-schema does), never resolves an edge (gen-view's `referenceResolution` declares the query and gen-scope answers it), never checks a contract (gen-algebra / gen-schema do), never unions raw graphs (gen-scope does), never materializes (gen-view does). It stores nothing between calls and carries no domain knowledge (NixOS, home-manager, den).
 
 ## Table of Contents
 
@@ -41,17 +41,17 @@ gen-schema   — checkRefinements, refined                     (contracts)
 gen-aspects  — keySemantics grammar, aspect identity          (aspect payload)
 gen-scope    — algebraic-graph union/query (Mokhov 2017)      (graph primitives)
 gen-graph    — reachability / condensation                    (visibility)
-gen-resolve  — reference + resolve/materialize                (edge resolution)
+gen-view     — referenceResolution + viewRelation             (edge resolution, materialization)
 gen-view     — viewRelation + placement                       (terminal move)
 
 gen-link (Class B) — federation conductor
-  depends on: gen-scope, gen-resolve, gen-schema, gen-algebra, gen-aspects (+ gen-prelude)
+  depends on: gen-scope, gen-view, gen-schema, gen-algebra, gen-aspects (+ gen-prelude)
   owns:       origin coordinate · disjoint-union+relabel · resolution manifest
   stores:     nothing (accessor pattern)
   knows:      nothing about NixOS / den / aspect semantics
 ```
 
-Consumers (den-hoag, and any downstream flake) wire gen-link the way den wires gen-resolve: they supply the domain vocabulary; gen-link supplies the federation sequencing.
+Consumers (den-hoag, and any downstream flake) wire gen-link the way den wires its substrate siblings: they supply the domain vocabulary; gen-link supplies the federation sequencing.
 
 ## Gen Ecosystem
 
@@ -64,7 +64,7 @@ Consumers (den-hoag, and any downstream flake) wire gen-link the way den wires g
 | [gen-aspects](https://github.com/sini/gen-aspects) | Aspect type system (`keySemantics` grammar, the aspect-chain `key`, `keyRef`) |
 | [gen-scope](https://github.com/sini/gen-scope) | HOAG scope-graph evaluator + algebraic graphs (`overlay` / `gmap`) |
 | [gen-graph](https://github.com/sini/gen-graph) | Accessor-based graph query combinators (reachability, condensation) |
-| [gen-resolve](https://github.com/sini/gen-resolve) | Demand-driven RAG evaluator (`reference` — forward/reverse edge resolution) |
+| [gen-view](https://github.com/sini/gen-view) | The derived-view constructor (`referenceResolution` — the forward `includes` arm, delegating to gen-scope) |
 | [gen-view](https://github.com/sini/gen-view) | `viewRelation` + `placement` — the terminal move into a class evaluation. It replaced the retired gen-edge `(S,T,P,M)` algebra at this repository's one call site (the conductor oracle) before ADR-0010 §3's retirement landed, and reaches here through `ci/flake.nix` alone — `lib/**` reads nothing from it |
 | [gen-link](https://github.com/sini/gen-link) | **This lib** — cross-flake aspect federation conductor |
 
@@ -123,7 +123,7 @@ link {
 1. **Normalize + origin-rewrite each source.** Ingest the registry into a source-relative graph (nodes keyed by `.key`; `includes` — by-value or by-key — extracted uniformly into id-edges), then rename every node to its federation **identifier** under the assigned origin and swap every edge endpoint — a uniform relabel over gen-scope `gmap`, no content re-evaluation. Per-node `alias` renames apply here.
 2. **Disjoint union.** `overlay` the origin-rewritten subgraphs (gen-scope). Origin makes the union collision-free by construction.
 3. **Mint, in staged passes.** Each `wire` entry contributes a RELATUM to its requirer — label the facet name, value the filler's identifier — and every merged node is emitted to gen-scope's `mintStrata` at a pass derived from the wire graph. A relatum resolves only against what strictly earlier passes settled, so an ill-founded filling (a node filling its own hole, or a cycle) cannot resolve and is refused by name. An unwired required facet is a separate, loud, named error.
-4. **Resolve cross-origin references.** Run gen-resolve `reference` (forward `includes` nearest-binding) over the merged graph *as the scope*. Resolution is active-edge-driven and lazy — gen-link does not scan.
+4. **Resolve cross-origin references.** Declare a gen-view `referenceResolution` (the forward `includes` arm, Néron et al. 2015 rule (X)) over the merged graph *as the scope*, injecting that same gen-scope as its query authority. Resolution is active-edge-driven and lazy — gen-link does not scan.
 5. **Type-check each active cross-origin edge.** Capability → gen-algebra `record` (`requires ⊆ provides`); refined → gen-schema `checkRefinements`. A type failure is a loud, named error at the edge.
 6. **Record the manifest.** Every cross-origin `includes` edge and every wired hole is written to the manifest with both endpoints' ids — the `flake.lock` pattern (Dolstra 2006) applied to cross-origin edges.
 
@@ -254,7 +254,7 @@ The sufficiency claim — **gen-link sequences the real siblings and adds only o
 
 1. Origin-union two toy collections that each define `apps/media/pg` → assert their federated nodes have **distinct** origin-qualified identifiers.
 2. Wire a capability edge and type-check it via gen-algebra; the unsatisfiable variant throws named.
-3. Resolve the cross-origin include via gen-resolve `reference` → the requirer sees the provider's tags (a stubbed `reference` returns null and the assertion catches it — gen-resolve is genuinely load-bearing).
+3. Resolve the cross-origin include via gen-view `referenceResolution` → the requirer sees the provider's tags (a stubbed construct returns null and the assertion catches it — the construct is genuinely load-bearing).
 4. Rebuild the wired node's identity from its identifier and its relatum's identity through gen-schema directly, and assert the minting run produced the same digest.
 5. Materialize the linked node's class content through gen-view — the content is authored into the scope graph's data component, and the channel's `viewRelation` folds it into the cell `placement` names.
 

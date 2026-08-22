@@ -18,17 +18,21 @@
 #   algebra — `checkCapability` decides through `record.fromAttrs`/`has`/`assertSatisfies`
 #   schema  — `checkRefined` delegates to `schema.checkRefinements`; a null refinement type is a
 #             benign call that still has to build the library to ask it
-#   resolve — reached ONLY from a link that reaches a cross-origin include, because `link` binds
-#             `resolvedProvides` to `(resolve.reference { … }).compute` and gen-scope's evaluator
-#             forces that attribute only for a node that has includes. The demo is the smallest
-#             fixture in this repository that gets there, and it is already this suite's fixture.
+#   view    — reached ONLY from a link that reaches a cross-origin include, because `link` binds
+#             `resolvedProvides` to `(view.referenceResolution { … }).compute` and gen-scope's
+#             evaluator forces that attribute only for a node that has includes. The demo is the
+#             smallest fixture in this repository that gets there, and it is already this suite's
+#             fixture. ★ THE KEY FORCES A VALUE: `deepSeq` over the demo drives the resolution, so a
+#             shim that constructed gen-view but forwarded it wrongly reddens here rather than
+#             passing on the formals alone.
 #
-# WHAT THIS CELL DOES NOT WITNESS. The entry threads its own `scope` into gen-resolve so that one
-# evaluator, over one authority, serves both. This cell exercises whatever evaluator gen-resolve
-# resolves through and cannot tell a threaded one from a self-constructed one that happens to work:
-# delete the threading and, at a pin where gen-resolve's own entry is sound, every key here stays
-# green. The one-instance property is held by construction in `default.nix`, and undoing it is a
-# reviewed source edit — that is the residual exposure, stated rather than guarded.
+# ★★ WHAT THIS CELL NO LONGER HAS TO WITNESS, BECAUSE THE MIGRATION REMOVED THE HAZARD RATHER THAN
+# GUARDING IT. The predecessor sibling had to be handed this shim's own `scope`, so that one
+# evaluator over one authority served both — and this cell could not tell a threaded instance from a
+# self-constructed one that happened to work, which was a stated residual exposure. gen-view takes
+# its query AUTHORITY as an injected field: `lib/link.nix` hands it the very `scope` the library
+# holds, there is no second evaluator for it to construct, and a threading that could be silently
+# undone no longer exists. The shim self-constructs gen-view the way it self-constructs `aspects`.
 #
 # THE KEY SET IS THE SIBLING SET, and holding that an identity is what keeps this cell's coverage
 # total. The shim constructs exactly the siblings `../lib` reads, so every sibling it constructs has
@@ -87,7 +91,7 @@ in
           value = 1;
         }
       );
-      resolve = builtins.deepSeq demo "linked";
+      view = builtins.deepSeq demo "linked";
     };
     expected = {
       prelude = true;
@@ -95,7 +99,7 @@ in
       scope = true;
       algebra = true;
       schema = "int";
-      resolve = "linked";
+      view = "linked";
     };
   };
 }

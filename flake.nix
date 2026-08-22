@@ -19,10 +19,17 @@
   inputs = {
     gen-prelude.url = "github:sini/gen-prelude";
 
-    # gen-resolve carries a gen-scope of its own, and that gen-scope now carries a gen-schema — a
-    # third door onto the identity authority, which neither entry below covers.
-    gen-resolve.url = "github:sini/gen-resolve";
-    gen-resolve.inputs.gen-scope.inputs.gen-schema.follows = "gen-schema";
+    # ★ gen-view SUPPLIES THE REFERENCE-RESOLUTION CONSTRUCT AND OPENS NO NEW DOOR. Measured: its
+    # lock holds exactly three nodes (root, gen-prelude, gen-graph), so it reaches neither
+    # gen-schema nor gen-identity and needs no `follows` line of its own. `ci/tests/lock-shape.nix`
+    # re-measures that rather than trusting this comment.
+    #
+    # ★★ IT REPLACES gen-resolve, WHICH LEAVES IN THE SAME CHANGE. That library's `reference` was
+    # this repository's ENTIRE dependence on it — one call site — and after the rewrite a retained
+    # `gen-resolve` formal would be a declared dependency the library never reads, which
+    # `ci/tests/entry.nix` names as the exact state it exists to catch (it is how the retired `edge`
+    # formal survived). Its gen-scope's gen-schema door closes with it.
+    gen-view.url = "github:sini/gen-view";
 
     gen-schema.url = "github:sini/gen-schema";
     gen-algebra.url = "github:sini/gen-algebra";
@@ -48,7 +55,7 @@
     {
       gen-prelude,
       gen-scope,
-      gen-resolve,
+      gen-view,
       gen-schema,
       gen-algebra,
       gen-aspects,
@@ -58,7 +65,7 @@
       lib = import ./lib {
         prelude = gen-prelude.lib;
         scope = gen-scope.lib;
-        resolve = gen-resolve.lib;
+        view = gen-view.lib;
         schema = gen-schema.lib;
         algebra = gen-algebra.lib;
         aspects = gen-aspects.lib;

@@ -1,5 +1,5 @@
 # THE conductor oracle (design §Testing). Exercises gen-aspects (key/keyRef), gen-scope (overlay/gmap
-# + buildNodes/eval + mintStrata), gen-resolve (reference), gen-algebra (assertSatisfies), gen-schema
+# + buildRoots/eval + mintStrata), gen-view (referenceResolution), gen-algebra (assertSatisfies), gen-schema
 # (hashIdentity, reached THROUGH the minting entry), gen-view (viewRelation) in ONE chain. A stub in
 # any breaks it.
 {
@@ -192,9 +192,9 @@ in
     expr = bad.success;
     expected = false;
   };
-  # gen-resolve load-bearing: B/app's cross-origin include resolves (via `reference`) to A/pg's
+  # the reference-resolution construct is load-bearing: B/app's cross-origin include resolves to A/pg's
   # capability tags. A stub `reference` (compute = _: _: null) => null => this fails.
-  flake.tests.conductor-oracle.test-gen-resolve-resolves-provider = {
+  flake.tests.conductor-oracle.test-reference-resolution-resolves-provider = {
     expr = result.resolved.${appIdentifier};
     expected = [
       "read"

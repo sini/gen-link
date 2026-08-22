@@ -12,7 +12,7 @@
 {
   prelude,
   scope,
-  resolve,
+  view,
   schema,
   algebra,
   aspects,
@@ -36,7 +36,7 @@ let
     inherit
       prelude
       scope
-      resolve
+      view
       ref
       normalize
       rewrite

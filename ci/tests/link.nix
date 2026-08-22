@@ -131,9 +131,9 @@ in
     expr = builtins.length includeEntries >= 1;
     expected = true;
   };
-  # gen-resolve is load-bearing: B/app's cross-origin include resolves (via reference) to A/pg's
+  # the reference-resolution construct is load-bearing: B/app's cross-origin include resolves to A/pg's
   # provided capability tags. A stubbed `reference` -> null here.
-  flake.tests.link.test-resolution-through-gen-resolve = {
+  flake.tests.link.test-resolution-through-reference-resolution = {
     expr = result.resolved.${appIdentifier};
     expected = [
       "read"

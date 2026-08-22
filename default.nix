@@ -1,6 +1,6 @@
 # Standalone (non-flake) entry. Flake consumers should use the `.lib` output.
 #
-# gen-link is Class B: gen-prelude base + {gen-scope, gen-resolve, gen-schema, gen-algebra,
+# gen-link is Class B: gen-prelude base + {gen-scope, gen-view, gen-schema, gen-algebra,
 # gen-aspects}. This shim derives each from the pinned flake.lock (content-addressed via narHash, so
 # it stays pure). Each sibling flake `.lib` self-resolves its own deps, so we import each sibling's
 # standalone entry, which self-constructs. Pass any dep explicitly to override.
@@ -15,10 +15,12 @@
   # makes the count one is the dataflow, and agreement between two instances is what a divergence
   # looks like right up until the revision where it is not.
   scope ? import "${fetch "gen-scope"}" { inherit prelude schema; },
-  # gen-resolve reaches gen-scope, and the instance it reaches must be the one this shim derived.
-  # Left to self-construct it builds a second evaluator over a second authority, and what makes the
-  # count one is the dataflow — not two pins that happen to agree.
-  resolve ? import "${fetch "gen-resolve"}" { inherit scope; },
+  # ★ gen-view NEEDS NO THREADING, AND THE ASYMMETRY IS THE DESIGN RATHER THAN AN OMISSION. Its
+  # reference-resolution construct takes its query AUTHORITY as an injected field — `lib/link.nix`
+  # hands it the very `scope` above — so gen-view reaches no evaluator and no identity authority of
+  # its own, and there is no second instance for a threading to collapse. It self-constructs the way
+  # `aspects` does.
+  view ? import "${fetch "gen-view"}" { },
   schema ? import "${fetch "gen-schema"}" { inherit prelude; },
   algebra ? import "${fetch "gen-algebra"}/lib",
   aspects ? import "${fetch "gen-aspects"}" { },
@@ -28,7 +30,7 @@ import ./lib {
   inherit
     prelude
     scope
-    resolve
+    view
     schema
     algebra
     aspects

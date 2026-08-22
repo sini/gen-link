@@ -4,11 +4,18 @@
 # ★★★ WHY THIS IS AN INVARIANT AND NOT A LANDING-TIME INSPECTION. Both flakes carry a `follows` pair
 # collapsing gen-aspects' and gen-scope's gen-schema onto the root's, and it would be easy to read
 # the pair as the property. It is not: it is the property's CURRENT DISCHARGE. A lock acquires a
-# gen-schema through whatever input acquires one, and this repository's lock already carries TWO
-# gen-scope nodes — root's, and gen-resolve's own, which no `follows` here governs. The day
-# gen-resolve bumps to a gen-scope that carries a gen-schema input, a second identity authority
-# enters through a door the pair does not cover. A `jq` run at landing would have passed once and
-# never run again; this cell fails on that future bump.
+# gen-schema through whatever input acquires one, and a door the pair does not cover can open
+# without anything here changing.
+#
+# ★★ THAT IS NOT A HYPOTHETICAL, AND THE HISTORY IS KEPT BECAUSE THE INVARIANT EARNED IT. This
+# repository's lock used to carry TWO gen-scope nodes — root's, and gen-resolve's own, which no
+# `follows` here governed. This cell NAMED that door before it opened ("the day gen-resolve bumps
+# to a gen-scope that carries a gen-schema input, a second identity authority enters through a door
+# the pair does not cover") and then FAILED on the bump that opened it. A `jq` run at landing would
+# have passed once and never run again. gen-resolve has since left this repository entirely — its
+# `reference` was the whole of the dependence and gen-view's construct replaced it — so that
+# particular door is gone rather than guarded. The invariant stays, because the NEXT one will not
+# be announced either.
 #
 # ★★ WHY IT MATTERS, AND IT IS NOW TWO REASONS OVER TWO LABELS — the invariant SPLIT rather than
 # moved. The content-address formula left gen-schema for gen-identity, a dependency-free leaf, so
