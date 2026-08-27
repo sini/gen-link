@@ -95,7 +95,9 @@ link {
   # sources: the origin-labeled subgraphs to federate. The importing flake joins as a source too, so
   #   `self/*` references resolve — `self` is the surface name for its origin []. Per-source `origin`
   #   (rescope) and `alias` (per-node rename) live on each entry; `keySemantics` is the source's facet
-  #   vocabulary.
+  #   vocabulary and is REQUIRED — a source with no facets writes `keySemantics = { }` and says so,
+  #   because the omission's other reading ("the vocabulary was not passed") is what silently blinds
+  #   the completeness guard to that source's own holes.
   sources = [
     { registry = self.aspects; origin = [ ]; keySemantics = ks; }               # importer; `self` origin = []
     { registry = a.aspects;    origin = [ "a" ]; keySemantics = ks; }           # default origin = source identity
@@ -106,14 +108,15 @@ link {
   # wire: fill federation HOLES (facet-requires) only. Each filler is a node REFERENCE — a structured
   #   `{ origin; path }` or an origin-qualified path-string — bound by id, never a raw closure
   #   (defunctionalization, Reynolds 1972). `includes` are NEVER wired; the pipeline (not `wire`) fills
-  #   context args (host/user/…).
+  #   context args (host/user/…). A key that is no DECLARED hole on that requirer is refused by name:
+  #   the entries for a node are exactly its declared holes, no more (here) and no fewer (step 3).
   wire."b/apps/app".dbreq = "a/apps/media/pg";   # fill b/apps/app's `dbreq` facet-require with a's pg node
 }
 → {
   graph    = <origin-disjoint merged gen-scope subgraph>;   # not stored by gen-link
   manifest = <ordered list of { kind; from; to; via }>;     # diffable: cross-origin edges bound
   nodes    = { <id> = { origin; node }; };                  # the id → source-node index
-  bound    = [ { id; node; origin; holeFillings } ];        # instantiated hole-filled nodes (folded ids)
+  bound    = [ { identifier; relata; origin; node; identity } ];   # what `wire` bound, with the minted identity
   resolved = { <requirerId> = <resolved provider tags | null>; };   # per-requirer cross-origin resolution
 }
 ```
@@ -122,7 +125,7 @@ link {
 
 1. **Normalize + origin-rewrite each source.** Ingest the registry into a source-relative graph (nodes keyed by `.key`; `includes` — by-value or by-key — extracted uniformly into id-edges), then rename every node to its federation **identifier** under the assigned origin and swap every edge endpoint — a uniform relabel over gen-scope `gmap`, no content re-evaluation. Per-node `alias` renames apply here.
 2. **Disjoint union.** `overlay` the origin-rewritten subgraphs (gen-scope). Origin makes the union collision-free by construction.
-3. **Mint, in staged passes.** Each `wire` entry contributes a RELATUM to its requirer — label the facet name, value the filler's identifier — and every merged node is emitted to gen-scope's `mintStrata` at a pass derived from the wire graph. A relatum resolves only against what strictly earlier passes settled, so an ill-founded filling (a node filling its own hole, or a cycle) cannot resolve and is refused by name. An unwired required facet is a separate, loud, named error.
+3. **Mint, in staged passes.** Each `wire` entry contributes a RELATUM to its requirer — label the facet name, value the filler's identifier — and every merged node is emitted to gen-scope's `mintStrata` at a pass derived from the wire graph. A relatum resolves only against what strictly earlier passes settled, so an ill-founded filling (a node filling its own hole, or a cycle) cannot resolve and is refused by name. An unwired required facet is a separate, loud, named error — forced on **every** field of the result, so the refusal is a property of the call rather than of a consumer that happened to read the manifest.
 4. **Resolve cross-origin references.** Declare a gen-view `referenceResolution` (the forward `includes` arm, Néron et al. 2015 rule (X)) over the merged graph *as the scope*, injecting that same gen-scope as its query authority. Resolution is active-edge-driven and lazy — gen-link does not scan.
 5. **Type-check each active cross-origin edge.** Capability → gen-algebra `record` (`requires ⊆ provides`); refined → gen-schema `checkRefinements`. A type failure is a loud, named error at the edge.
 6. **Record the manifest.** Every cross-origin `includes` edge and every wired hole is written to the manifest with both endpoints' ids — the `flake.lock` pattern (Dolstra 2006) applied to cross-origin edges.
@@ -173,7 +176,7 @@ The flake's `.lib` exposes:
 
 ### `link { sources, wire ? {} } → { graph; manifest; nodes; bound; resolved }`
 
-The federation conductor (above). `sources` entries are `{ registry; origin ? []; alias ? {}; keySemantics ? {}; }`; `wire` is `{ "<requirerRef>" = { <facet> = "<fillerRef>"; }; }`. References are origin-qualified path-strings or structured `{ origin; path }`.
+The federation conductor (above). `sources` entries are `{ registry; keySemantics; origin ? []; alias ? {}; }` — `keySemantics` carries no default, and a source that omits it is refused by name; `wire` is `{ "<requirerRef>" = { <facet> = "<fillerRef>"; }; }`, whose keys for a node must be exactly that node's declared holes. References are origin-qualified path-strings or structured `{ origin; path }`.
 
 ### Identifier and identity
 

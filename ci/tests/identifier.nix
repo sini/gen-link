@@ -12,10 +12,15 @@
   ...
 }:
 let
+  # ★ ONE vocabulary, read by the registries AND by the source entries. `link` refuses a source that
+  # declares no `keySemantics` — a class-only federation says so with this attrset rather than by
+  # omitting the field, because the omission's other reading is "the vocabulary was not passed", and
+  # that one silently blinds the hole guard to the source's own nodes.
+  classKs = {
+    nixos.category = "class";
+  };
   reg = mkAspectRegistry {
-    keySemantics.nixos = {
-      category = "class";
-    };
+    keySemantics = classKs;
     modules = [
       (
         { ... }:
@@ -32,9 +37,7 @@ let
     ];
   };
   target = mkAspectRegistry {
-    keySemantics.nixos = {
-      category = "class";
-    };
+    keySemantics = classKs;
     modules = [ { config.aspects.apps.media.pg.nixos = { }; } ];
   };
 
@@ -42,10 +45,12 @@ let
     sources = [
       {
         registry = reg.config.aspects;
+        keySemantics = classKs;
         origin = [ "x" ];
       }
       {
         registry = target.config.aspects;
+        keySemantics = classKs;
         origin = [ "y" ];
       }
     ];

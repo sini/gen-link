@@ -76,6 +76,12 @@ let
   holeEntries = builtins.filter (e: e.kind == "hole") result.manifest;
   includeEntries = builtins.filter (e: e.kind == "includes") result.manifest;
   appIdentifier = "b/apps/app";
+  # ★ THE REQUIRER HERE HAS TO BE A REAL ONE. This used to wire `a/apps/media/pg` — a pure PROVIDER,
+  # which declares no `dbreq` hole — and the wire site now refuses that before it ever resolves the
+  # filler, so the cell below would have stayed green while measuring the undeclared-hole refusal
+  # under a name that says absent target. `b/apps/app` declares the hole, so the only defect left in
+  # this federation is the filler naming a coordinate nothing carries. (Measured: the provider form
+  # answers `wire entry 'a/apps/media/pg.dbreq' names no declared hole … (declared: none)`.)
   badWire = builtins.tryEval (
     (genLink.link {
       sources = [
@@ -84,8 +90,13 @@ let
           keySemantics = ks;
           origin = [ "a" ];
         }
+        {
+          registry = regB.config.aspects;
+          keySemantics = ks;
+          origin = [ "b" ];
+        }
       ];
-      wire."a/apps/media/pg".dbreq = "a/nonexistent";
+      wire."b/apps/app".dbreq = "a/nonexistent";
     }).manifest
   );
   # A MERGED requirer (b/apps/app carries the `dbreq` requires-hole) with NO `wire` entry at all.
@@ -187,6 +198,28 @@ let
     "a/apps/media/redis"
   ];
   oneProvidingInclude = linkIncluding [ "a/apps/media/pg" ];
+
+  # ── THE GUARD'S REACH, AND THE TWO ABSENCES THAT USED TO DISABLE IT ──
+  fixtures = import ./_fixtures/link.nix {
+    inherit
+      genLink
+      genMerge
+      aspects
+      mkAspectRegistry
+      ;
+  };
+  # Every field of the result, forced the way the trap was measured. `deepSeq` rather than `seq`
+  # because a shallow force reaches nothing under a lazily-built field, and the point of the cell is
+  # what a CONSUMER's reading reaches.
+  fields = [
+    "graph"
+    "bound"
+    "resolved"
+    "nodes"
+  ];
+  fieldEvaluates =
+    res: builtins.map (f: (builtins.tryEval (builtins.deepSeq res.${f} true)).success) fields;
+  links = args: (builtins.tryEval (builtins.deepSeq (genLink.link args).manifest true)).success;
 in
 {
   flake.tests.link.test-returns-graph-and-manifest = {
@@ -243,5 +276,65 @@ in
   flake.tests.link.test-unwired-required-facet-throws = {
     expr = unwiredRequirer.success;
     expected = false;
+  };
+
+  # ── THE COMPLETENESS GUARD REACHES EVERY FIELD ──
+  # The cell above forces `.manifest`, which is where the guard used to be forced — and it was the
+  # ONLY field that reached it: on the same open federation `graph`, `bound`, `resolved` and `nodes`
+  # each evaluated clean, so a consumer reading the merged graph or enumerating the node map got a
+  # silent pass on a hole nothing filled. The expected list is written out per field so a fix that
+  # covers three of the four fails here rather than passing on an `any`.
+  flake.tests.link.test-the-completeness-guard-fires-on-every-field = {
+    expr = fieldEvaluates fixtures.unwired;
+    expected = [
+      false
+      false
+      false
+      false
+    ];
+  };
+  # ★ THE CONTROL, SAME INSTRUMENT AND SAME RUN. The same four fields of the same federation with
+  # the hole WIRED still evaluate, so what the refusals above report is the open hole and not a
+  # `deepSeq` that cannot survive these fields at all.
+  flake.tests.link.test-control-every-field-evaluates-on-a-closed-federation = {
+    expr = fieldEvaluates fixtures.wired;
+    expected = [
+      true
+      true
+      true
+      true
+    ];
+  };
+
+  # ── A SOURCE'S MISSING VOCABULARY IS A REFUSAL, NOT AN EMPTY ONE ──
+  # `keySemantics` omitted from the requirer's source entry used to disable the guard for that
+  # source's OWN nodes — `holesOf { }` sees no hole on a node that declares one — so this exact
+  # federation linked green with `b/apps/app#dbreq` open. The message cell next door
+  # (`tests-error.nix`) is what tells this refusal apart from the unwired-hole one; the control on
+  # the same predicate is `facets.test-holes-of-requirer`, which reads `[ "dbreq" ]` off the same
+  # node WITH the vocabulary in hand.
+  flake.tests.link.test-a-source-without-keysemantics-refuses = {
+    expr = links { sources = fixtures.sourcesMissingKs; };
+    expected = false;
+  };
+
+  # ── A FILLING FILLS A DECLARED HOLE ──
+  # `notAFacet` names nothing any source declares. It used to be accepted (`contractOf` answers
+  # "capability" for any key and `requiresOf` answers `[ ]` for an undeclared one, so the contract
+  # check passed vacuously), become a relatum, and fork the requirer's identity on a name no
+  # signature carries.
+  flake.tests.link.test-a-filling-naming-no-declared-hole-refuses = {
+    expr = links fixtures.undeclaredFilling;
+    expected = false;
+  };
+  # ★ THE CONTROL, AND IT IS THE SAME WIRE MINUS ONE KEY. The declared filling still binds and still
+  # arrives as the relatum that keys the identity — so the refusal above is the undeclared name and
+  # not the wire site rejecting fillings generally. (`minting.test-every-merged-node-carries-an-
+  # identity` is the standing control that the identity itself still mints from these relata.)
+  flake.tests.link.test-control-a-declared-hole-filling-still-binds = {
+    expr = (builtins.head fixtures.wired.bound).relata;
+    expected = {
+      dbreq = "a/apps/media/pg";
+    };
   };
 }

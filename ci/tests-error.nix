@@ -48,6 +48,8 @@ let
     unwiredHoleRefusal
     unknownTargetRefusal
     unresolvedRelatumRefusal
+    missingKeySemanticsRefusal
+    undeclaredHoleRefusal
     ;
 
   manifestOf = args: (genLink.link args).manifest;
@@ -89,6 +91,34 @@ in
       expectedError = {
         type = "ThrownError";
         msg = exactly (unknownTargetRefusal "wire filler 'a/nonexistent'" "a/nonexistent");
+      };
+    };
+
+    # ── THE VOCABULARY GUARD, BY ITS OWN TEXT ──
+    # ★ AND IT IS WHY THIS CELL IS HERE RATHER THAN AS A BOOLEAN. The federation above and this one
+    # differ only in whether the requirer's source entry carries `keySemantics`, and BOTH refuse — so
+    # a pair of booleans is equally satisfied by a construction that answers the unwired-hole refusal
+    # to both. What says the omission was SEEN rather than silently read as "declares no facets" is
+    # that the message names the ORIGIN and spells the explicit empty declaration. The cell above,
+    # over the same requirer WITH its vocabulary, is the control: it names the aspect and the facet.
+    test-a-source-without-keysemantics-names-the-origin-and-the-repair = {
+      expr = (genLink.link { sources = fixtures.sourcesMissingKs; }).manifest;
+      expectedError = {
+        type = "ThrownError";
+        msg = exactly (missingKeySemanticsRefusal "b");
+      };
+    };
+
+    # ── THE WIRE-SITE GUARD, BY ITS OWN TEXT ──
+    # A filling naming a facet no source declares. The message names the entry AS WRITTEN and lists
+    # the holes that ARE declared, so a misspelling is read beside the name it missed — a boolean
+    # cannot tell this refusal from the membership one, and `notAFacet` resolves to a filler that IS
+    # in the federation, so the membership guard is not what fires.
+    test-a-filling-naming-no-declared-hole-names-the-entry-and-the-declared-holes = {
+      expr = (genLink.link fixtures.undeclaredFilling).manifest;
+      expectedError = {
+        type = "ThrownError";
+        msg = exactly (undeclaredHoleRefusal "b/apps/app" "b/apps/app" "notAFacet" [ "dbreq" ]);
       };
     };
   };

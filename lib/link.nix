@@ -61,13 +61,33 @@ let
 
       # per-source keySemantics keyed by origin label (for facet reads at the wire type-check, and
       # handed to the minting entry as its kind stratum).
+      #
+      # ★ AN OMITTED `keySemantics` IS REFUSED, NOT DEFAULTED TO `{ }`. The two readings of the
+      # absence — "this source declares no facets" and "this source's vocabulary was not passed" —
+      # are indistinguishable to a default, and the second one silently disables the completeness
+      # guard for that source's OWN nodes: `holesOf { }` answers `[ ]` on a node that declares a
+      # hole, so the federation links with the hole open and says nothing. A source that genuinely
+      # has no facets writes `keySemantics = { }` and the decision is one an author made.
       ksByOrigin = prelude.listToAttrs (
-        map (s: {
-          name = ref.renderOrigin (s.origin or [ ]);
-          value = s.keySemantics or { };
-        }) sources
+        map (
+          s:
+          let
+            label = ref.renderOrigin (s.origin or [ ]);
+          in
+          {
+            name = label;
+            value =
+              s.keySemantics
+                or (throw "gen-link.link: source at origin '${label}' declares no `keySemantics`, so its own facets — and every hole they declare — would be invisible. Declare the source's facet vocabulary, or `keySemantics = { }` if it genuinely has none.");
+          }
+        ) sources
       );
-      ksOf = origin: ksByOrigin.${ref.renderOrigin origin} or { };
+      # No merged node can carry an origin no source stamped, so this refusal is unreachable from the
+      # surface today; it is here because a silent `{ }` is the very fallback the entry above removes.
+      ksOf =
+        origin:
+        ksByOrigin.${ref.renderOrigin origin}
+        or (throw "gen-link.link: no source declares origin '${ref.renderOrigin origin}', so its facet vocabulary cannot be read");
 
       entryOf =
         identifier: what:
@@ -86,6 +106,14 @@ let
           # identity the same string an incident edge carries, so choosing a label is choosing a
           # traversal token — and `hole:` names the mechanism rather than the relation.
           relata = prelude.mapAttrs (_facet: filler: identifierOf filler) fillings;
+          # ★ A FILLING FILLS A DECLARED HOLE, AND THAT IS THE OTHER HALF OF THE COMPLETENESS GUARD.
+          # The guard below demands holes ⊆ wired; this demands wired ⊆ holes, and together the wire
+          # entry set for a node IS its declared hole set. Without it a `wire` entry naming a facet
+          # the source never declared was accepted — `contractOf` answers "capability" for any key at
+          # all and `requiresOf` answers `[ ]` for an undeclared one, so the contract check passed
+          # vacuously — and it still became a relatum, forking the requirer's instantiation identity
+          # on a name no source declares (Backpack: a filling is against a SIGNATURE).
+          holes = facets.holesOf rKs rEntry.node;
           # discharge each filled facet contract.
           typed = prelude.mapAttrsToList (
             facet: filler:
@@ -93,7 +121,11 @@ let
               fEntry = entryOf (identifierOf filler) "wire filler '${filler}'";
               edgeName = "${requirerRef}#${facet} <- ${filler}";
             in
-            if facets.contractOf rKs facet == "refined" then
+            if !(builtins.elem facet holes) then
+              throw "gen-link.link: wire entry '${requirerRef}.${facet}' names no declared hole on '${identifier}' (declared: ${
+                if holes == [ ] then "none" else builtins.concatStringsSep ", " holes
+              }). Declare the hole (`${facet} = { requires = [ … ]; }`, with a `category = \"facet\"` keySemantics entry) or drop the filling."
+            else if facets.contractOf rKs facet == "refined" then
               contract.checkRefined {
                 inherit edgeName;
                 # A refined facet TYPES the edge with a gen-schema refined TYPE. gen-schema
@@ -332,13 +364,20 @@ let
         ++ (map (e: manifestRow "hole" e.label e) minted.edges)
       );
     in
-    {
+    # ★★ THE COMPLETENESS GUARD IS A PROPERTY OF THE CALL, NOT OF A READING PATTERN. It used to be
+    # forced under `.manifest` alone, which made it reachable only for the consumer that read a
+    # manifest: `graph`, `nodes`, `bound` and `resolved` all evaluated clean with a hole left open,
+    # so every other reading got a silent pass. Mapping the force over EVERY field is what makes the
+    # reach total BY CONSTRUCTION rather than by an enumeration the next field falls out of.
+    # (The MINT's own refusal keeps its narrower reach — `.manifest` and every `identity` field —
+    # because forcing every node's content-address is what a caller reading only `graph` is asking
+    # not to pay. The guard here is a walk over the merged nodes' facet values.)
+    prelude.mapAttrs (_field: value: builtins.deepSeq unwiredHoleGuard value) {
       graph = merged.graph;
       # Both guards RUN before the manifest is observed: the completeness guard first, because an
       # unwired hole is an authoring omission whose message names the repair, then the mint, whose
-      # refusal names an ill-founded relation. Forcing them here is lazy-safe and is what makes them
-      # properties of the CALL rather than of a consumer's reading pattern.
-      manifest = builtins.deepSeq unwiredHoleGuard (builtins.seq minted manifestEntries);
+      # refusal names an ill-founded relation.
+      manifest = builtins.seq minted manifestEntries;
       # Each node under its identifier, carrying the identity as a FIELD rather than as its name.
       nodes = prelude.mapAttrs (
         identifier: en: en // { inherit (minted.nodes.${identifier}) identity; }

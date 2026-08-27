@@ -106,6 +106,11 @@ let
     inherit sources;
     wire."b/apps/app".dbreq = "a/apps/media/pg";
   };
+
+  # The SAME federation with nothing wired: `b/apps/app` declares a `dbreq` hole and no `wire` entry
+  # names it. Held as a value rather than a `linkManifest` call because the cells over it project
+  # each field of the result in turn.
+  unwired = genLink.link { inherit sources; };
 in
 {
   inherit
@@ -115,7 +120,28 @@ in
     sources
     linkManifest
     wired
+    unwired
     ;
+
+  # The requirer's source entry with its `keySemantics` REMOVED — `removeAttrs` over the same
+  # constructor, so the omission is the only difference from `sources` above and a cell over it is
+  # measuring the omission rather than a second hand-written fixture.
+  sourcesMissingKs = [
+    (srcOf [ "a" ] provider)
+    (removeAttrs (srcOf [ "b" ] requirer) [ "keySemantics" ])
+  ];
+
+  # A filling naming a facet no source declares, BESIDE the real one — the shape the wire site used
+  # to accept: `notAFacet` type-checked vacuously (nothing declares it, so nothing is required of
+  # it), became a relatum and forked `b/apps/app`'s identity. Holding the real filling alongside is
+  # what makes the control below the same wire minus one key.
+  undeclaredFilling = {
+    inherit sources;
+    wire."b/apps/app" = {
+      dbreq = "a/apps/media/pg";
+      notAFacet = "a/apps/media/pg";
+    };
+  };
 
   # A self-filling: the node is its own relatum, inside one evaluation with no stratum between them.
   selfFilling = {
@@ -217,6 +243,24 @@ in
     requirerRef: facets:
     "gen-link.link: aspect '${requirerRef}' has unwired required facet(s): ${builtins.concatStringsSep ", " facets}."
     + " Wire each via `wire.\"${requirerRef}\".<facet> = <provider-ref>`.";
+
+  # The vocabulary guard: a source that never passed its `keySemantics`. The refusal names the
+  # ORIGIN, because that is the only coordinate a source entry has, and it spells the explicit empty
+  # declaration — the omission's two readings are told apart by the author, not by a default.
+  missingKeySemanticsRefusal =
+    originLabel:
+    "gen-link.link: source at origin '${originLabel}' declares no `keySemantics`, so its own facets — and every hole they declare — would be invisible."
+    + " Declare the source's facet vocabulary, or `keySemantics = { }` if it genuinely has none.";
+
+  # The wire-site guard: a filling naming a facet that is no declared hole on the requirer. The text
+  # lists what IS declared, so a misspelling shows itself beside the name it missed, and it names
+  # both repairs — the filling may be the mistake or the missing declaration may be.
+  undeclaredHoleRefusal =
+    requirerRef: identifier: facet: holes:
+    "gen-link.link: wire entry '${requirerRef}.${facet}' names no declared hole on '${identifier}' (declared: ${
+      if holes == [ ] then "none" else builtins.concatStringsSep ", " holes
+    })."
+    + " Declare the hole (`${facet} = { requires = [ … ]; }`, with a `category = \"facet\"` keySemantics entry) or drop the filling.";
 
   # The federation-membership guard: a `wire` reference naming something the merged graph does not
   # carry. `what` names the reference's ROLE, so one text serves the requirer and the filler.
