@@ -1,10 +1,19 @@
-# THE STANDALONE ENTRY, EXERCISED. `import ../.. { }` is the non-flake path this repository
+# THE STANDALONE ENTRY, EXERCISED. The root `default.nix` is the non-flake path this repository
 # documents twice — `AGENTS.md` describes the root entry and its overridable parameters, and points
-# a reader at `ci/repl.nix`, which is that import. Every OTHER cell in this suite takes `genLink`
+# a reader at `ci/repl.nix`, which builds its surface with `import ./.. { }`. Every OTHER cell in
+# this suite takes `genLink`
 # from `ci/flake.nix`, which builds it with `import ../lib` from ci's own inputs and so never
 # evaluates the root shim. That shim has been fixed once and extended once — the sibling-root arity
 # repair, then the schema threading whose comment calls the one-instance dataflow load-bearing —
 # both in a file no cell could see regress. This is that cell.
+#
+# ★★ THE CELL IS PURE, AND THE PURITY IS A CONSEQUENCE OF HOW IT IS CALLED. The shim's six
+# dependency defaults `builtins.fetchTree` the flake-locked revisions; supplying ALL SIX explicitly
+# means those defaults are never forced, so this reaches the network not at all. What it tests is
+# the shim's SIGNATURE and its DELEGATION — which is precisely where the defect lives. The bare
+# `import ../.. { }` form does NOT have this property, and the difference is measured rather than
+# assumed: with the shim's `fetch` formal replaced by a `throw`, the bare form aborts — reported at
+# the `aspects` key — while the supplied form evaluates clean with that same `throw` installed.
 #
 # One key per sibling the shim CONSTRUCTS and the library REACHES. Each key was verified in
 # isolation: break that shim, evaluate that key alone, watch it go red while the others stay green.
@@ -55,6 +64,11 @@
 {
   genMerge,
   aspects,
+  genPrelude,
+  genScope,
+  genView,
+  genSchema,
+  genAlgebra,
   lib,
   ...
 }:
@@ -70,7 +84,17 @@ let
       map (line: lib.head (lib.splitString "#" line)) (lib.splitString "\n" text)
     );
 
-  entry = import ../.. { };
+  # ★ ALL SIX dependency formals, from the SAME bindings `ci/flake.nix` builds its `lib` output
+  # from. That is what keeps this cell offline, and it is also what makes the cell a reading of the
+  # SHIM: over two different substrate builds it would be exercising two libraries.
+  entry = import ../.. {
+    prelude = genPrelude;
+    scope = genScope;
+    view = genView;
+    schema = genSchema;
+    algebra = genAlgebra;
+    inherit aspects;
+  };
 
   demo = import ../../examples/demo/demo.nix {
     genLink = entry;
@@ -115,8 +139,8 @@ in
     };
   };
 
-  # ★ THE FOUR CELLS ABOVE CANNOT SEE THIS CLASS, and the reason is the property that makes them
-  # hermetic: they supply every dependency formal explicitly, so the shim's `fetch`-backed DEFAULTS —
+  # ★ THE CELL ABOVE CANNOT SEE THIS CLASS, and the reason is the property that makes it
+  # hermetic: it supplies every dependency formal explicitly, so the shim's `fetch`-backed DEFAULTS —
   # which is where the divergence lives — are never forced. Forcing them would put `builtins.fetchTree`
   # inside the suite. This cell reads the CONSTRUCTION instead of the outcome, which is strictly wider:
   # it also catches the member that never throws (a defaulted formal on the far side turns the loud arm

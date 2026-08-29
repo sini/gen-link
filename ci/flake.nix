@@ -96,6 +96,12 @@
           genMerge
           mkAspectRegistry
           ;
+        # The harness's own `genPrelude` carries `hasInfix` and nothing else — enough for the
+        # purity scan, not enough for `ci/tests/entry.nix`, which hands the root shim every formal
+        # it declares so the shim's `fetch`-backed defaults are never forced. It gets gen-link's own
+        # gen-prelude, the same instance `genLink` above is built from, so the suites and the
+        # subject share one build rather than holding two.
+        genPrelude = gen-prelude.lib;
         genView = gen-view.lib;
         genAlgebra = gen-algebra.lib;
         genSchema = gen-schema.lib;
