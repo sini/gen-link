@@ -55,18 +55,18 @@ Consumers (den-hoag, and any downstream flake) wire gen-link the way den wires i
 
 ## Gen Ecosystem
 
-| Library | Role |
-|---------|------|
-| [gen-prelude](https://github.com/sini/gen-prelude) | Pure nixpkgs-lib-free utility base (builtins re-exports + vendored lib utils) |
-| [gen-algebra](https://github.com/sini/gen-algebra) | Pure primitives (record algebra, search monad, either, intensional identity) |
-| [gen-identity](https://github.com/sini/gen-identity) | The substrate's one identity mint — `hashIdentity` |
-| [gen-schema](https://github.com/sini/gen-schema) | Typed registries + `checkRefinements` / `refined` |
-| [gen-aspects](https://github.com/sini/gen-aspects) | Aspect type system (`keySemantics` grammar, the aspect-chain `key`, `keyRef`) |
-| [gen-scope](https://github.com/sini/gen-scope) | HOAG scope-graph evaluator + algebraic graphs (`overlay` / `gmap`) |
-| [gen-graph](https://github.com/sini/gen-graph) | Accessor-based graph query combinators (reachability, condensation) |
-| [gen-view](https://github.com/sini/gen-view) | The derived-view constructor (`referenceResolution` — the forward `includes` arm, delegating to gen-scope) |
-| [gen-view](https://github.com/sini/gen-view) | `viewRelation` + `placement` — the terminal move into a class evaluation. It replaced the retired gen-edge `(S,T,P,M)` algebra at this repository's one call site (the conductor oracle) before ADR-0010 §3's retirement landed, and reaches here through `ci/flake.nix` alone — `lib/**` reads nothing from it |
-| [gen-link](https://github.com/sini/gen-link) | **This lib** — cross-flake aspect federation conductor |
+| Library                                              | Role                                                                                                                                                                                                                                                                                                            |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [gen-prelude](https://github.com/sini/gen-prelude)   | Pure nixpkgs-lib-free utility base (builtins re-exports + vendored lib utils)                                                                                                                                                                                                                                   |
+| [gen-algebra](https://github.com/sini/gen-algebra)   | Pure primitives (record algebra, search monad, either, intensional identity)                                                                                                                                                                                                                                    |
+| [gen-identity](https://github.com/sini/gen-identity) | The substrate's one identity mint — `hashIdentity`                                                                                                                                                                                                                                                              |
+| [gen-schema](https://github.com/sini/gen-schema)     | Typed registries + `checkRefinements` / `refined`                                                                                                                                                                                                                                                               |
+| [gen-aspects](https://github.com/sini/gen-aspects)   | Aspect type system (`keySemantics` grammar, the aspect-chain `key`, `keyRef`)                                                                                                                                                                                                                                   |
+| [gen-scope](https://github.com/sini/gen-scope)       | HOAG scope-graph evaluator + algebraic graphs (`overlay` / `gmap`)                                                                                                                                                                                                                                              |
+| [gen-graph](https://github.com/sini/gen-graph)       | Accessor-based graph query combinators (reachability, condensation)                                                                                                                                                                                                                                             |
+| [gen-view](https://github.com/sini/gen-view)         | The derived-view constructor (`referenceResolution` — the forward `includes` arm, delegating to gen-scope)                                                                                                                                                                                                      |
+| [gen-view](https://github.com/sini/gen-view)         | `viewRelation` + `placement` — the terminal move into a class evaluation. It replaced the retired gen-edge `(S,T,P,M)` algebra at this repository's one call site (the conductor oracle) before ADR-0010 §3's retirement landed, and reaches here through `ci/flake.nix` alone — `lib/**` reads nothing from it |
+| [gen-link](https://github.com/sini/gen-link)         | **This lib** — cross-flake aspect federation conductor                                                                                                                                                                                                                                                          |
 
 ## Usage
 
@@ -219,37 +219,37 @@ carries it. Without it a consumer holding a row could not name the kind to mint 
 
 ### References & Origin
 
-| Function | Signature | Semantics |
-|----------|-----------|-----------|
-| `parseRef` | `ref → { __keyRef; origin; path; key }` | Parse a structured or string reference; `self` maps to origin `[]`. Slash-splitting delegates to gen-aspects `keyRef`. |
-| `originLabel` | `origin → string` | The raw `"/"`-joined origin list; `[]` → `""`. `renderOrigin` is what builds identifiers. |
-| `renderOrigin` | `origin → string` | Surface rendering for manifests/errors/keys: `[]` → `"self"`. |
+| Function       | Signature                               | Semantics                                                                                                              |
+| -------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `parseRef`     | `ref → { __keyRef; origin; path; key }` | Parse a structured or string reference; `self` maps to origin `[]`. Slash-splitting delegates to gen-aspects `keyRef`. |
+| `originLabel`  | `origin → string`                       | The raw `"/"`-joined origin list; `[]` → `""`. `renderOrigin` is what builds identifiers.                              |
+| `renderOrigin` | `origin → string`                       | Surface rendering for manifests/errors/keys: `[]` → `"self"`.                                                          |
 
 ### Federation Steps
 
-| Function | Signature | Semantics |
-|----------|-----------|-----------|
-| `normalize` | `registry → { nodesByKey; edges; refByToken }` | Registry → source-relative, origin-free includes-graph. No content re-evaluation (bounded WHNF head-touch only). |
-| `originStamp` | `{ normalized; origin; alias ? {} } → { graph; idToNode }` | The origin-rewrite: uniform relabel over gen-scope `gmap` (by-value and by-key edges alike) + per-node `alias`. |
-| `disjointUnion` | `[ { graph; idToNode } ] → { graph; idToNode }` | `overlay` the origin-stamped subgraphs (gen-scope union monoid). Collision-free by construction. |
+| Function        | Signature                                                  | Semantics                                                                                                        |
+| --------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `normalize`     | `registry → { nodesByKey; edges; refByToken }`             | Registry → source-relative, origin-free includes-graph. No content re-evaluation (bounded WHNF head-touch only). |
+| `originStamp`   | `{ normalized; origin; alias ? {} } → { graph; idToNode }` | The origin-rewrite: uniform relabel over gen-scope `gmap` (by-value and by-key edges alike) + per-node `alias`.  |
+| `disjointUnion` | `[ { graph; idToNode } ] → { graph; idToNode }`            | `overlay` the origin-stamped subgraphs (gen-scope union monoid). Collision-free by construction.                 |
 
 ### Facets & Contracts
 
-| Function | Signature | Semantics |
-|----------|-----------|-----------|
-| `holesOf` | `ks → node → [facet]` | The node's facet keys whose value carries `requires` (unfilled capability holes). |
-| `providesOf` | `ks → node → [tag]` | Union of `provides` tags across the node's facet keys. |
-| `requiresOf` | `node → facet → [tag]` | A capability hole's `requires` demand. |
-| `contractOf` | `ks → facet → "capability" \| "refined"` | The facet's contract flavor (default `"capability"`). |
+| Function          | Signature                                            | Semantics                                                                                                                  |
+| ----------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `holesOf`         | `ks → node → [facet]`                                | The node's facet keys whose value carries `requires` (unfilled capability holes).                                          |
+| `providesOf`      | `ks → node → [tag]`                                  | Union of `provides` tags across the node's facet keys.                                                                     |
+| `requiresOf`      | `node → facet → [tag]`                               | A capability hole's `requires` demand.                                                                                     |
+| `contractOf`      | `ks → facet → "capability" \| "refined"`             | The facet's contract flavor (default `"capability"`).                                                                      |
 | `checkCapability` | `{ edgeName; provides; requires } → record \| throw` | `requires ⊆ provides` via gen-algebra `record.has`; own named error on a missing tag, `record.assertSatisfies` on success. |
-| `checkRefined` | `{ edgeName; refinedType; value } → value \| throw` | gen-schema `checkRefinements` over a `__schema`-tagged refined type; own named error on a violation. |
+| `checkRefined`    | `{ edgeName; refinedType; value } → value \| throw`  | gen-schema `checkRefinements` over a `__schema`-tagged refined type; own named error on a violation.                       |
 
 ### Manifest
 
-| Function | Signature | Semantics |
-|----------|-----------|-----------|
-| `entry` | `{ kind; from; fromKind; to; toKind; via ? null } → manifestEntry` | Construct one manifest entry. `kind` is the ROW's sort (`∈ { "includes", "hole" }`); `fromKind`/`toKind` are the endpoint NODES' kinds. Every field but `via` is required. |
-| `order` | `[ entry ] → [ entry ]` | Deterministic ordering for diff stability. |
+| Function | Signature                                                          | Semantics                                                                                                                                                                  |
+| -------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `entry`  | `{ kind; from; fromKind; to; toKind; via ? null } → manifestEntry` | Construct one manifest entry. `kind` is the ROW's sort (`∈ { "includes", "hole" }`); `fromKind`/`toKind` are the endpoint NODES' kinds. Every field but `via` is required. |
+| `order`  | `[ entry ] → [ entry ]`                                            | Deterministic ordering for diff stability.                                                                                                                                 |
 
 ## Testing
 
@@ -273,22 +273,22 @@ cd ci && just ci conductor-oracle          # run one suite
 
 ## Theoretical Foundations
 
-| Feature | Paper |
-|---------|-------|
-| Registry as scope graph; resolution as name resolution; D\<I\<P visibility | Néron, Tolmach, Visser & Wachsmuth (2015) "A Theory of Name Resolution" |
-| End-of-path resolution over scopes | van Antwerpen, Poulsen, Rouvoet & Visser (2018) "Scopes as Types" |
-| Disjoint union of subgraphs; overlay as the union monoid | Mokhov (2017) "Algebraic Graphs with Class" |
-| Hermetic linking with explicit signatures (holes) | Kilpatrick, Dreyer, Peyton Jones & Marlow (2014) "Backpack: Retrofitting Haskell with Interfaces"; Yang (2016) "Backpack to Work" |
+| Feature                                                                                                   | Paper                                                                                                                                            |
+| --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Registry as scope graph; resolution as name resolution; D\<I\<P visibility                                | Néron, Tolmach, Visser & Wachsmuth (2015) "A Theory of Name Resolution"                                                                          |
+| End-of-path resolution over scopes                                                                        | van Antwerpen, Poulsen, Rouvoet & Visser (2018) "Scopes as Types"                                                                                |
+| Disjoint union of subgraphs; overlay as the union monoid                                                  | Mokhov (2017) "Algebraic Graphs with Class"                                                                                                      |
+| Hermetic linking with explicit signatures (holes)                                                         | Kilpatrick, Dreyer, Peyton Jones & Marlow (2014) "Backpack: Retrofitting Haskell with Interfaces"; Yang (2016) "Backpack to Work"                |
 | Instantiation creates identity; **applicative** default (Leroy), generative alternative rejected (Dreyer) | MacQueen (1984) "Modules for Standard ML"; Leroy (1995) "Applicative Functors…"; Dreyer (2005) "Understanding and Evolving the ML Module System" |
-| First-class linkable units | Flatt & Felleisen (1998) "Units: Cool Modules for HOT Languages" |
-| Binding-time analysis (per-node closed/open) | Jones, Gomard & Sestoft (1993) "Partial Evaluation and Automatic Program Generation" |
-| The inspectable wrapped-fn functor realizing open aspects | Palmer et al. (2024) "Intensional Functions" |
-| Forward reference / reverse inter-type resolution | Hedin (2000) "Reference Attributed Grammars"; Hedin & Magnusson (2003) "JastAdd" |
-| Content-addressed identity; the lock pattern | Merkle (1987) hash trees; Dolstra (2006) "The Purely Functional Software Deployment Model" |
-| Capability contract (provide/require) | Bracha & Cook (1990) "Mixin-based Inheritance" |
-| Refined-value contract | Findler & Felleisen (2002) "Contracts for Higher-Order Functions"; Rondon, Kawaguchi & Jhala (2008) "Liquid Types" |
-| Nominal inhabitance (class IS-A) | Pierce (2002) "Types and Programming Languages" §19.3 |
-| Defunctionalize hole-fillings to data before hashing | Reynolds (1972) "Definitional Interpreters for Higher-Order Programming Languages" |
-| Dataflow-conduit homonym disambiguation (`pipe.channel`, NOT keySemantics channel) | Kahn (1974) "The Semantics of a Simple Language for Parallel Programming" |
+| First-class linkable units                                                                                | Flatt & Felleisen (1998) "Units: Cool Modules for HOT Languages"                                                                                 |
+| Binding-time analysis (per-node closed/open)                                                              | Jones, Gomard & Sestoft (1993) "Partial Evaluation and Automatic Program Generation"                                                             |
+| The inspectable wrapped-fn functor realizing open aspects                                                 | Palmer et al. (2024) "Intensional Functions"                                                                                                     |
+| Forward reference / reverse inter-type resolution                                                         | Hedin (2000) "Reference Attributed Grammars"; Hedin & Magnusson (2003) "JastAdd"                                                                 |
+| Content-addressed identity; the lock pattern                                                              | Merkle (1987) hash trees; Dolstra (2006) "The Purely Functional Software Deployment Model"                                                       |
+| Capability contract (provide/require)                                                                     | Bracha & Cook (1990) "Mixin-based Inheritance"                                                                                                   |
+| Refined-value contract                                                                                    | Findler & Felleisen (2002) "Contracts for Higher-Order Functions"; Rondon, Kawaguchi & Jhala (2008) "Liquid Types"                               |
+| Nominal inhabitance (class IS-A)                                                                          | Pierce (2002) "Types and Programming Languages" §19.3                                                                                            |
+| Defunctionalize hole-fillings to data before hashing                                                      | Reynolds (1972) "Definitional Interpreters for Higher-Order Programming Languages"                                                               |
+| Dataflow-conduit homonym disambiguation (`pipe.channel`, NOT keySemantics channel)                        | Kahn (1974) "The Semantics of a Simple Language for Parallel Programming"                                                                        |
 
 See the full design in [`papers/den-architecture/gen-specs/gen-link/2026-07-24-gen-link-design.md`](https://github.com/sini/den) and the canonical [`REFERENCE.md`](https://github.com/sini/den).
