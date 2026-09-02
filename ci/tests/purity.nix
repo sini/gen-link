@@ -7,9 +7,9 @@
 # `flake.nix`, so the `nixpkgs` ban is what holds that second half. It says NOTHING about those
 # siblings' own purity; each library asserts its own, in its own suite.
 #
-# Scope: the `.nix` files directly under `lib/` + the root flake.nix + default.nix (the library +
-# its flake). NOT ci/ — the test harness legitimately uses nixpkgs.lib (including, here, to do
-# this scan).
+# Scope: every `.nix` file under `lib/`, at any depth + the root flake.nix + default.nix (the
+# library + its flake). NOT ci/ — the test harness legitimately uses nixpkgs.lib (including, here,
+# to do this scan).
 { genPrelude, lib, ... }:
 let
   libDir = ../../lib;
@@ -47,22 +47,47 @@ let
     in
     lib.concatStringsSep "\n" (map stripLine (lib.splitString "\n" text));
 
-  nixFiles = lib.filter (lib.hasSuffix ".nix") (lib.attrNames (builtins.readDir libDir));
-  sources =
-    map (name: {
-      inherit name;
-      code = stripComments (builtins.readFile (libDir + "/${name}"));
-    }) nixFiles
-    ++ [
-      {
-        name = "flake.nix";
-        code = stripComments (builtins.readFile ../../flake.nix);
-      }
-      {
-        name = "default.nix";
-        code = stripComments (builtins.readFile ../../default.nix);
-      }
-    ];
+  # walk : string -> path -> [ { name; path; } ], `name` being `prefix` extended by the entry's
+  # position in the tree. The flat `readDir` this replaces filtered on `.nix` and so dropped a
+  # SUBDIRECTORY on the floor: a tether under `lib/sub/` was invisible to a cell named
+  # `…-is-nixpkgs-lib-free`, measured green with the file present and git-tracked. Same shape as
+  # gen-graph's, deliberately — the walk cell below is its fixture too.
+  walk =
+    prefix: dir:
+    lib.concatLists (
+      lib.mapAttrsToList (
+        entry: type:
+        if type == "directory" then
+          walk "${prefix}${entry}/" (dir + "/${entry}")
+        else if lib.hasSuffix ".nix" entry then
+          [
+            {
+              name = "${prefix}${entry}";
+              path = dir + "/${entry}";
+            }
+          ]
+        else
+          [ ]
+      ) (builtins.readDir dir)
+    );
+
+  read =
+    entries:
+    map (e: {
+      inherit (e) name;
+      code = stripComments (builtins.readFile e.path);
+    }) entries;
+
+  sources = read (walk "lib/" libDir) ++ [
+    {
+      name = "flake.nix";
+      code = stripComments (builtins.readFile ../../flake.nix);
+    }
+    {
+      name = "default.nix";
+      code = stripComments (builtins.readFile ../../default.nix);
+    }
+  ];
 
   # Tokens that signal a nixpkgs-lib tether or the module-system (Korora-class) tier.
   forbidden = [
@@ -105,5 +130,19 @@ in
   flake.tests.purity.test-control-strip-cuts-at-comments-not-inside-strings = {
     expr = scan [ probe ];
     expected = [ "<in-string-hash>: 'lib.'" ];
+  };
+
+  # THE WALK DESCENDS, AND CARRIES ITS PREFIX. lib/ is flat today, so the invariant cell exercises
+  # the recursive branch not at all and would keep passing if the walk quietly flattened — which is
+  # precisely the state this replaced. The fixture tree is nested on purpose and carries a planted
+  # tether at each of its two depths; handing the walk a non-empty prefix pins both halves of the
+  # naming rule, that the given prefix is threaded through and that a subdirectory's prefix extends
+  # it rather than replacing it.
+  flake.tests.purity.test-walk-descends-into-subdirectories = {
+    expr = scan (read (walk "ci/tests/_fixtures/purity-walk/" ./_fixtures/purity-walk));
+    expected = [
+      "ci/tests/_fixtures/purity-walk/nested/tethered.nix: 'lib.'"
+      "ci/tests/_fixtures/purity-walk/surface.nix: 'mkOption'"
+    ];
   };
 }
