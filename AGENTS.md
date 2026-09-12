@@ -1,5 +1,7 @@
 # gen-link — agent capability sheet
 
+> **Library class: reference-grade.** Deletion requires a domain argument — wrong abstraction, subsumption by another construct, or theory-unsoundness; a usage count is inadmissible as a deletion ground (P7, 2026-08-17).
+
 ## Scope
 
 Cross-flake aspect federation: `link { sources, wire }` normalizes each source aspect registry into an origin-free includes-graph, stamps every node with a federation origin, disjoint-unions the subgraphs, mints every merged node's identity through `gen-scope`'s staged minting entry with each facet filling as a relatum, and returns a diffable resolution manifest — owning only the origin coordinate, the union-with-relabel, and the manifest, and delegating every computation to a gen sibling.
