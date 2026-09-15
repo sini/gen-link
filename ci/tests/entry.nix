@@ -59,8 +59,8 @@
 #
 # A broken shim fails both instruments. `nix flake check` — the merge gate — reaches these
 # assertions through `checks.default` and fails on a wrong value as well as on an abort. `nix-unit`
-# isolates the break to one poisoned cell, reported ☢️ with a non-zero exit and NO red ❌, so a
-# reading of THAT instrument which tallies only ❌ scores the break green.
+# isolates the break to one poisoned cell, reported radioactive with a non-zero exit and NO failure
+# marker, so a reading of THAT instrument which tallies only the failure marker scores the break green.
 {
   genLink,
   genMerge,
@@ -382,7 +382,7 @@ in
   # and both halves were driven one variable at a time by neutering the shared operand — operand
   # spelled twice, control at a different input: `10/10`, exit 0, UNDETECTED; operand shared, control
   # moved to the main arm's own input (`formalsOf (import ../..)`): `10/10`, exit 0, UNDETECTED;
-  # operand shared AND control at a different input: `9/10`, exit 1, THIS cell ❌. Known-answer versus
+  # operand shared AND control at a different input: `9/10`, exit 1, rc 1 with one failing cell. Known-answer versus
   # relative is not the axis — a relative control at a different input catches the same tamper.
   #
   # ★ THE FIXTURE NAMES `a` AND `b`, which are the formals of a lambda THIS CELL WRITES and no shim
