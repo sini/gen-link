@@ -12,7 +12,7 @@
 # means those defaults are never forced, so this reaches the network not at all. What it tests is
 # the shim's SIGNATURE and its DELEGATION — which is precisely where the defect lives. The bare
 # `import ../.. { }` form does NOT have this property, and the difference is measured rather than
-# assumed: with the shim's `fetch` formal replaced by a `throw`, the bare form aborts — reported at
+# assumed: with the shim's `src` formal replaced by a `throw`, the bare form aborts — reported at
 # the `aspects` key — while the supplied form evaluates clean with that same `throw` installed.
 #
 # One key per sibling the shim CONSTRUCTS and the library REACHES. Each key was verified in
@@ -62,6 +62,7 @@
 # isolates the break to one poisoned cell, reported ☢️ with a non-zero exit and NO red ❌, so a
 # reading of THAT instrument which tallies only ❌ scores the break green.
 {
+  genLink,
   genMerge,
   aspects,
   genPrelude,
@@ -100,11 +101,17 @@ let
     inherit aspects;
     # The shim's own plumbing, which this cell is now obliged to CHOOSE rather than inherit. The
     # `throw` is what makes non-hermeticity IMPOSSIBLE for this application rather than merely
-    # detected — but it is NOT the guard: four of the fourteen shims in this domain declare no
-    # `fetch` formal at all and all four carry `...`, so they would swallow this key unread and
+    # detected — but it is NOT the guard: a shim carrying `...` would swallow these keys unread and
     # unreported. The guard is the pair of cells below.
-    fetch = name: throw "the entry cell must not fetch: ${name}";
-    lock = { };
+    #
+    # ★ THE SEAM IS `src`, AND IT IS PATH-SHAPED. The shim reads its own `ci/flake.lock` as local
+    # DATA, so there is no `lock` formal left to neutralise and a cell passing one neither needed to
+    # nor could; what remains injectable is the single expression that fetches. `dep` is the
+    # arity-dispatching resolver built over it and is closed for the same reason — a formal left at
+    # its default is a channel this application did not choose.
+    inputs = { };
+    src = segs: throw "the entry cell must not fetch: ${builtins.concatStringsSep "." segs}";
+    dep = segs: throw "the entry cell must not build: ${builtins.concatStringsSep "." segs}";
   };
 
   entry = import ../.. entryArgs;
@@ -211,9 +218,14 @@ in
       # alone would read `[ ]` on a real member and pass.
       expr = {
         count = builtins.length (builtins.filter builtins.isList parts);
+        # ★ THE DIAGNOSTIC READS THE SHIM'S CURRENT SPELLING, which is a PATH LIST rather than a
+        # name: the last segment of `src [ "gen-scope" "gen-prelude" ]` is the dependency, and it is
+        # what sits immediately before the `}` the needle consumes.
         reaches = map builtins.head (
           builtins.filter (m: m != null) (
-            map (p: builtins.match ''.*fetch "(gen-[a-z-]+)"$'' p) (builtins.filter builtins.isString parts)
+            map (p: builtins.match ''.*"(gen-[a-z-]+)"[[:space:]]*]$'' p) (
+              builtins.filter builtins.isString parts
+            )
           )
         );
       };
@@ -325,4 +337,33 @@ in
     expr = countEntry ("  entry = import ../" + ".. { };");
     expected = 1;
   };
+
+  # ★★★ THE DEFAULTS THEMSELVES, FORCED — the one cell in this suite that is NOT hermetic, and the
+  # class every cell above is blind to by the property that makes them hermetic. `entry` supplies
+  # every dependency formal, so the shim's `ci/flake.lock`-backed defaults never fire there; here
+  # nothing is supplied and forcing them IS `builtins.fetchTree`. That is the accepted price of
+  # measuring the non-flake contract at all, and it remains PURE: `fetchTree` on a locked node is
+  # narHash-addressed, with no channel and no `<…>`.
+  #
+  # ★★ THE CALL IS ARITY-DISPATCHED, NOT `import ../.. { }`. A dependency-free library publishes its
+  # root as a bare VALUE rather than a function, so the literal application is wrong at those roots
+  # by design; the dispatch below is the one form total over the roster, and it is the same
+  # construct the shim's own `dep` uses. ★ It also keeps the structural cell above honest: the
+  # dispatch reads `import ../..` UNAPPLIED, which the literal-application needle does not count.
+  #
+  # ★ THE FORCE DEPTH IS EACH MEMBER'S WHNF, AND HERE THAT REACHES THE RESOLVER — measured, not
+  # assumed: with the shim's `src` seam sealed by a `throw`, the same force reds at `gen-prelude`,
+  # and with it open it returns. A library whose whole published surface were lambdas would need a
+  # CALL here instead, because no force depth enters a lambda.
+  flake.tests.entry.test-the-defaulted-entry-publishes-the-flake-surface =
+    let
+      root = import ../..;
+      dispatched = if builtins.isFunction root then root { } else root;
+    in
+    {
+      expr = builtins.deepSeq (builtins.mapAttrs (_: builtins.typeOf) dispatched) (
+        builtins.attrNames dispatched
+      );
+      expected = builtins.attrNames genLink;
+    };
 }

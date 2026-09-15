@@ -70,7 +70,12 @@
       # by design (gen-scope's `buildNodes`), so a deep force is red on a healthy tree.
       lib =
         let
-          surface = import ./lib {
+          # ★ THE ROOT, NOT `./lib`. `./.` and `./lib` were two independent constructions of one
+          # value and so free to disagree; there is ONE construction site now, and the two entry
+          # paths differ only in who supplies the arguments. Here the flake supplies them, so
+          # `follows` governs every argument passed — what the flake passes is what `follows`
+          # resolved — while the standalone path falls back to `ci/flake.lock`.
+          surface = import ./. {
             prelude = gen-prelude.lib;
             scope = gen-scope.lib;
             view = gen-view.lib;
