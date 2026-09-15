@@ -32,17 +32,25 @@
 # does not see a `let` in the body.
 let
   lock = builtins.fromJSON (builtins.readFile ./ci/flake.lock);
-  inputsOf = node: lock.nodes.${node}.inputs or { };
   # A direct edge IS the node key; a `follows` value is a PATH resolved segment by segment from this
   # lock's own root. Never by indexing `lock.nodes.<label>` — a last-segment shortcut reads a
-  # different node.
-  following =
-    node: inp:
+  # different node. IT TAKES ITS LOCK AS AN ARGUMENT SO THAT THE ENTRY CELL CAN DRIVE THIS EXACT
+  # BINDING ON A FIXTURE WHERE THE TWO RULES DISAGREE BY CONSTRUCTION; a resolver closed over this
+  # library's own lock could only ever be compared against a second copy of itself. This is the ONE
+  # declaration of the rule in this library — `ci/tests/entry.nix` reads this binding through the
+  # record the body hands `wire`, instead of transcribing the fold a second time.
+  resolve =
+    lock:
     let
-      v = (inputsOf node).${inp};
+      following =
+        node: inp:
+        let
+          v = (lock.nodes.${node}.inputs or { }).${inp};
+        in
+        if builtins.isString v then v else builtins.foldl' following lock.root v;
     in
-    if builtins.isString v then v else builtins.foldl' following lock.root v;
-  fetch = segs: builtins.foldl' following lock.root segs;
+    segs: builtins.foldl' following lock.root segs;
+  fetch = resolve lock;
 in
 {
   inputs ? { },
@@ -55,16 +63,19 @@ in
       v = import (src segs);
     in
     if builtins.isFunction v then v { } else v,
-  # `wire` IS THE THIRD SEAM, AND IT IS WHAT MAKES THE ENTRY SUITE'S HERMETIC CELL EXPRESSIBLE AT
-  # ALL. Nix publishes WHETHER a formal has a default and never WHAT it is, so the only place a
-  # formal NAME and its resolved PATH are both in scope is this file's argument TO `wire`. What
-  # `./lib` actually receives is a different question: `wire` RECEIVES the formal→path attrset,
-  # and passes on whatever it chooses to — here that is the whole of it, but only because the
-  # default below reads `args: import ./lib args,` and does nothing else. A cell injecting
-  # `dep = segs: segs` alongside `wire = args: args` reads this shim's own formal-to-path map
-  # directly, with nothing fetched and no path restated by hand. It is a widening and so breaks no
-  # caller — there is no `...` here, and no caller passes a name this root does not declare.
-  wire ? args: import ./lib args,
+  # `wire` IS THE THIRD SEAM, AND IT IS THE ONLY WAY ANYTHING LEAVES THIS FILE. Nix publishes
+  # WHETHER a formal has a default and never WHAT it is, and a formal is an INPUT channel that
+  # cannot carry a value outward at all — so the only place a formal NAME and its resolved PATH are
+  # both in scope is this file's argument TO `wire`, and `resolve` leaves by that same argument
+  # rather than by a fourth formal. What `./lib` actually receives is a different question: `wire`
+  # RECEIVES `{ deps, resolve }`, and passes on whatever it chooses to — here `deps` and nothing
+  # else, but only because the default below reads `{ deps, resolve }: import ./lib deps,`. A cell
+  # injecting `dep = segs: segs` alongside `wire = args: args` reads this shim's own formal-to-path
+  # map AND its own resolver directly, with nothing fetched, no path restated and no fold
+  # transcribed. The record destructures with no `...`, so a drifted body shape is loud at the
+  # default; adding `wire` was a widening and breaks no caller for the same reason — there is no
+  # `...` here, and no caller passes a name this root does not declare.
+  wire ? { deps, resolve }: import ./lib deps,
   prelude ? inputs.gen-prelude or (dep [ "gen-prelude" ]),
   scope ? inputs.gen-scope or (dep [ "gen-scope" ]),
   view ? inputs.gen-view or (dep [ "gen-view" ]),
@@ -97,4 +108,6 @@ let
   };
   forced = builtins.deepSeq (builtins.mapAttrs (_: builtins.typeOf) deps) null;
 in
-builtins.seq forced (wire deps)
+builtins.seq forced (wire {
+  inherit deps resolve;
+})
