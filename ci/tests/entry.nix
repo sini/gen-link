@@ -478,9 +478,9 @@ in
   # oracle, not a supplement to one. The two arms SHARE `repoOf`, and this one exercises it AT AN
   # INPUT THE MAIN ARM DOES NOT USE: a hand-written lock whose path walk and whose last-segment
   # shortcut land on different nodes by construction. Replace the fold with the shortcut and this
-  # reds at every library carrying this file; the cell above reds at none of them, because it reads
-  # `locked.repo` and the two rules agree on `locked.repo` at all 13 tranche-1 paths while disagreeing
-  # on the NODE at 3 of them.
+  # reds at every library carrying this file. The cell above cannot be relied on to: it reads
+  # `locked.repo`, and at tranche 1 the two rules agreed on `locked.repo` at all 13 wired paths while
+  # disagreeing on the NODE at 3 of them — so it red at none of the four.
   flake.tests.entry.test-control-the-follows-resolver-discriminates = {
     expr = repoOf followsFixture [
       "a"
@@ -567,8 +567,9 @@ in
   # default. Every cell above exercises the LOCK, so a formal transcribed as `x ? dep [ … ]` instead
   # of `x ? inputs.gen-x or (dep [ … ])` leaves its override silently ignored — MEASURED, both arms
   # in one run: on that one edit the supplied override is dropped and the whole entry suite reads
-  # green. ★ It is the channel that matters most where the flake arm is UNAPPLIED, which is three of
-  # the four libraries carrying this file: there the bag is the ONLY override path a consumer has.
+  # green. ★ It matters most where the flake arm is UNAPPLIED — the root published as `import ./.`
+  # rather than applied — because there the bag is the ONLY override path a consumer has. At tranche
+  # 1 that was three of the four.
   #
   # ★★ TOTAL OVER THE WIRED SET BY CONSTRUCTION. `expr` and `expected` are both derived from
   # `paths`, so the domain is whatever the root wires and never a hand-written list, and the
