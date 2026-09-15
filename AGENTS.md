@@ -43,7 +43,7 @@ Sweep of all 126 `flake.nix` files under `/home/sini/Documents/repos` (depth 6) 
 
 ## Exports
 
-Entry: `inputs.gen-link.lib` (flake), or `gen.lib.link` through the hub. Root `default.nix` is a **function** — `import ./gen-link { }` — whose named parameters (`prelude`, `scope`, `resolve`, `schema`, `algebra`, `aspects`) default to the `flake.lock` pins and may each be overridden.
+Entry: `inputs.gen-link.lib` (flake), or `gen.lib.link` through the hub. Root `default.nix` is a **function** — `import ./gen-link { }` — whose named parameters (`prelude`, `scope`, `resolve`, `schema`, `algebra`, `aspects`) default to the `flake.lock` pins and may each be overridden. A seventh formal on that same root, `wire ? args: import ./lib args` — distinct from `link`'s own `wire` argument below — is the seam that hands this exact parameter set to `./lib`; overriding it is how a cell reads the shim's own formal-to-path map with nothing fetched and no path restated by hand.
 
 **References & origin** — `lib/ref.nix`
 

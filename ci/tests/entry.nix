@@ -412,7 +412,7 @@ in
   # under another owner passes, and so does a path repointed at a DIFFERENT NODE of the right
   # repository — the shim's declared path is the only statement of intent, so there is no independent
   # `expected` to compare a resolved node against. Recorded open rather than repaired.
-  flake.tests.entry.test-every-declared-dependency-defaults-to-its-own-node = {
+  flake.tests.entry.test-every-wired-dependency-defaults-to-its-own-node = {
     expr = builtins.mapAttrs (_: repoOf) paths;
     expected = builtins.mapAttrs (formal: _: "gen-" + formal) paths;
   };
