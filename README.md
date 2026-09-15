@@ -269,7 +269,7 @@ cd ci && just ci                           # run all tests
 cd ci && just ci conductor-oracle          # run one suite
 ```
 
-**52 tests across 13 suites**: `conductor-oracle`, `link`, `identity`, `rewrite`, `facets`, `normalize`, `contract`, `ref`, `wire`, `union`, `demo`, `smoke`, and `purity`. The `purity` suite asserts the `lib/**` surface never touches `nixpkgs.lib`, enforcing the Class B invariant.
+**105 tests across 16 suites** (`nix-unit --flake ./ci#tests` ⇒ `105/105 successful`, `f10ab2a`): `authority`, `conductor-oracle`, `contract`, `demo`, `entry`, `facets`, `identifier`, `link`, `lock-shape`, `minting`, `normalize`, `purity`, `ref`, `rewrite`, `smoke`, and `union`. `identity` was renamed `identifier`, and `wire` split into `authority`, `lock-shape` and `minting`. The `purity` suite asserts the `lib/**` surface never touches `nixpkgs.lib`, enforcing the Class B invariant.
 
 ## Theoretical Foundations
 
