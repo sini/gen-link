@@ -109,12 +109,43 @@ let
     # nor could; what remains injectable is the single expression that fetches. `dep` is the
     # arity-dispatching resolver built over it and is closed for the same reason — a formal left at
     # its default is a channel this application did not choose.
+    #
+    # ★ `wire` IS THE THIRD SEAM AND IT IS CHOSEN, NOT CLOSED. It is the shim's own wiring of
+    # `../../lib`, restated here because the totality rule below admits no formal left at its
+    # default — closing it with a `throw` would leave this application with nothing to exercise.
+    # The hermetic cells at the foot of this file are where it is INJECTED rather than reproduced.
     inputs = { };
     src = segs: throw "the entry cell must not fetch: ${builtins.concatStringsSep "." segs}";
     dep = segs: throw "the entry cell must not build: ${builtins.concatStringsSep "." segs}";
+    wire = args: import ../../lib args;
   };
 
   entry = import ../.. entryArgs;
+
+  # ★★ THE SEAM-CLOSING ARGUMENT SET FOR THE HERMETIC PAIR AT THE FOOT OF THIS FILE, BOUND RATHER
+  # THAN WRITTEN AT THE APPLICATION — `entryArgs`' own rule, for `entryNeedle`'s reason. `dep` stops
+  # the resolver at the PATH instead of fetching it, and `wire` publishes the attrset the shim's body
+  # would otherwise hand to `./lib`, so this application is hermetic by CONSTRUCTION. Nothing else is
+  # supplied: every dependency formal is left at its default, which is the point — the defaults are
+  # the subject.
+  pathArgs = {
+    dep = segs: segs;
+    wire = args: args;
+  };
+  paths = import ../.. pathArgs;
+
+  # ★ THE SHIM'S OWN `following` RULE, TRANSCRIBED. A direct edge IS the node key; a `follows` value
+  # is a PATH resolved segment by segment from this lock's own root. Never `lock.nodes.<label>` — a
+  # last-segment shortcut reads a DIFFERENT node, and a ci lock routinely carries several same-named
+  # ones. Reading the lock is pure data; nothing here fetches.
+  lock = builtins.fromJSON (builtins.readFile ../flake.lock);
+  following =
+    node: inp:
+    let
+      v = (lock.nodes.${node}.inputs or { }).${inp};
+    in
+    if builtins.isString v then v else builtins.foldl' following lock.root v;
+  repoOf = segs: lock.nodes.${builtins.foldl' following lock.root segs}.locked.repo;
 
   demo = import ../../examples/demo/demo.nix {
     genLink = entry;
@@ -338,32 +369,81 @@ in
     expected = 1;
   };
 
-  # ★★★ THE DEFAULTS THEMSELVES, FORCED — the one cell in this suite that is NOT hermetic, and the
-  # class every cell above is blind to by the property that makes them hermetic. `entry` supplies
-  # every dependency formal, so the shim's `ci/flake.lock`-backed defaults never fire there; here
-  # nothing is supplied and forcing them IS `builtins.fetchTree`. That is the accepted price of
-  # measuring the non-flake contract at all, and it remains PURE: `fetchTree` on a locked node is
-  # narHash-addressed, with no channel and no `<…>`.
+  # ★★★ THE DEFAULTS THEMSELVES — the three cells in this suite the ones above are blind to by the
+  # property that makes them hermetic. `entry` supplies every dependency formal, so the shim's
+  # `ci/flake.lock`-backed defaults never fire there; nothing is supplied here.
+  #
+  # ★★ THE OBLIGATION IS PER DEPENDENCY PATH, NOT PER LIBRARY, and that is what splits it into
+  # three. A cell that reds when ANY ONE dependency is unreachable measures a disjunction while
+  # reading like a conjunction: measured at this library, a force of the SURFACE reached 2 of its 6
+  # dependency paths and read green over the other four, because `builtins.deepSeq` does not enter
+  # the lambdas the rest are reached from. The shim's eager body forces its dependencies at the
+  # BOUNDARY, so the third cell reaches all six — landed body 2 of 6, eager body 6 of 6, driven per
+  # path by sealing one and resolving the rest.
   #
   # ★★ THE CALL IS ARITY-DISPATCHED, NOT `import ../.. { }`. A dependency-free library publishes its
   # root as a bare VALUE rather than a function, so the literal application is wrong at those roots
   # by design; the dispatch below is the one form total over the roster, and it is the same
   # construct the shim's own `dep` uses. ★ It also keeps the structural cell above honest: the
   # dispatch reads `import ../..` UNAPPLIED, which the literal-application needle does not count.
-  #
-  # ★ THE FORCE DEPTH IS EACH MEMBER'S WHNF, AND HERE THAT REACHES THE RESOLVER — measured, not
-  # assumed: with the shim's `src` seam sealed by a `throw`, the same force reds at `gen-prelude`,
-  # and with it open it returns. A library whose whole published surface were lambdas would need a
-  # CALL here instead, because no force depth enters a lambda.
   flake.tests.entry.test-the-defaulted-entry-publishes-the-flake-surface =
     let
       root = import ../..;
       dispatched = if builtins.isFunction root then root { } else root;
     in
     {
-      expr = builtins.deepSeq (builtins.mapAttrs (_: builtins.typeOf) dispatched) (
-        builtins.attrNames dispatched
-      );
+      expr = builtins.attrNames dispatched;
       expected = builtins.attrNames genLink;
+    };
+
+  # ★★ EVERY WIRED DEPENDENCY RESOLVES, AND RESOLVES TO A NODE OF ITS OWN REPOSITORY. The shim states
+  # its intent as a PATH; this resolves that path through the same lock by the same rule and asks
+  # which repository the node it lands on belongs to. A path repointed at a live-but-wrong dependency
+  # — the failure the surface comparison above and a whole-seam seal both pass — reds here, naming
+  # the formal and the repository it reached. It is HERMETIC: `pathArgs` closes `dep`, so the map is
+  # read and resolved without a fetch.
+  #
+  # ★★ THE DOMAIN IS THE WIRED SET, NOT THE DECLARED SET. `paths` is the attrset the shim's body
+  # hands to `./lib`, so a formal declared and never threaded into it is invisible here — a domain
+  # statement rather than a gap, and `test-the-entry-application-is-total` above is where a stray
+  # DECLARED formal surfaces.
+  #
+  # ★ STATED CEILING: `locked.repo` is neither `owner` nor node identity. A same-named repository
+  # under another owner passes, and so does a path repointed at a DIFFERENT NODE of the right
+  # repository — the shim's declared path is the only statement of intent, so there is no independent
+  # `expected` to compare a resolved node against. Recorded open rather than repaired.
+  flake.tests.entry.test-every-declared-dependency-defaults-to-its-own-node = {
+    expr = builtins.mapAttrs (_: repoOf) paths;
+    expected = builtins.mapAttrs (formal: _: "gen-" + formal) paths;
+  };
+
+  # ★★ THE DENOMINATOR, TAKEN INDEPENDENTLY — without it the cell above is vacuous over an empty map.
+  # `paths` is what the root WIRES; `functionArgs (import ../../lib)` is what the library REQUIRES,
+  # read from a different file by a different builtin. A dependency dropped from the shim's body reds
+  # here even though every surviving path still resolves.
+  flake.tests.entry.test-the-wired-dependency-set-is-the-libs-own-formals = {
+    expr = builtins.attrNames paths;
+    expected = builtins.attrNames (builtins.functionArgs (import ../../lib));
+  };
+
+  # ★★★ THE DEFAULTS FORCED — the one cell in this file that is NOT hermetic. Forcing them IS
+  # `builtins.fetchTree`: the accepted price of measuring the non-flake contract at all, and it
+  # remains PURE, because `fetchTree` on a locked node is narHash-addressed with no channel and no
+  # `<…>`. `builtins.seq` of the dispatched root runs the shim's eager body, which forces every wired
+  # dependency to WHNF before `./lib` sees it, so a nonexistent node, an unresolvable follows path or
+  # a throwing root is loud at the BOUNDARY on every path rather than wherever a consumer first
+  # happens to reach one.
+  #
+  # ★ THE FORCE STOPS AT WHNF, DELIBERATELY: `seq` of an attrset does not force its members, so this
+  # never reaches into a dependency's own surface and a member a dependency deliberately refuses to
+  # build is not an exception to it.
+  flake.tests.entry.test-the-defaulted-entry-forces-every-dependency =
+    let
+      root = import ../..;
+      dispatched = if builtins.isFunction root then root { } else root;
+    in
+    {
+      expr = builtins.seq dispatched "forced";
+      expected = "forced";
     };
 }
