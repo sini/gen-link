@@ -38,6 +38,32 @@ let
   mainId = "x/main";
   helperId = "x/helper";
   yTargetId = "y/apps/media/pg";
+
+  # A SECOND, ISOLATED fixture: an inline includes entry with no key and no keyRef. gen-aspects'
+  # module system synthesizes a key for any bare attrset placed in `includes` regardless of what the
+  # author wrote there ("orphan/includes/0"), so this same shape also covers a named-but-wrong-key
+  # entry (`{ key = "nonexistent-key"; }` collapses to it too — the synthesized key overrides the
+  # authored one). Kept OUT of `reg`/`norm`/`stamped` above: a dangling edge refuses the WHOLE
+  # `originStamp` call, not just the vertex a cell is looking at, so nesting it into the shared
+  # `main`/`helper` fixture collaterally breaks unrelated cells that force the same `stamped`.
+  regDangling = mkAspectRegistry {
+    keySemantics.nixos = {
+      category = "class";
+    };
+    modules = [
+      {
+        config.aspects.orphan = {
+          nixos = { };
+          includes = [ { } ];
+        };
+      }
+    ];
+  };
+  normDangling = genLink.normalize regDangling.config.aspects;
+  stampedDangling = genLink.originStamp {
+    normalized = normDangling;
+    origin = [ "x" ];
+  };
 in
 {
   flake.tests.rewrite.test-vertices-are-identifiers = {
@@ -97,5 +123,25 @@ in
       in
       (builtins.head h1) != (builtins.head h2);
     expected = true;
+  };
+  # A local includes entry naming a key absent from BOTH `nodesByKey` and `refByToken` must refuse by
+  # name (ADR-0016 ruling 5), catchably — not abort past `tryEval` as an interpreter "attribute
+  # missing". The message-content half of this claim (that the refusal names the entry) lives in
+  # `ci/tests-error.nix`, where `nix-unit`'s `expectedError` — not `tryEval`, which discards the
+  # thrown text — is the assertion for a claim about a message.
+  flake.tests.rewrite.test-dangling-includes-refuses-by-name = {
+    expr = (builtins.tryEval (builtins.deepSeq stampedDangling.graph.vertices "ok")).success;
+    expected = false;
+  };
+  # The ordinary fixture never sees the dangling one — a fixture-isolation regression would show up
+  # here as a broken orphan check on `stamped`, not as this cell just staying green by accident.
+  flake.tests.rewrite.test-orphan-does-not-shadow-a-real-node = {
+    expr = builtins.tryEval (
+      builtins.elem mainId stamped.graph.vertices && builtins.elem helperId stamped.graph.vertices
+    );
+    expected = {
+      success = true;
+      value = true;
+    };
   };
 }

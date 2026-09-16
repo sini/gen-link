@@ -56,6 +56,37 @@ let
 
   # The message, pinned to the byte. nixpkgs' metacharacter set is the one the pattern is read under.
   exactly = msg: "^" + lib.escapeRegex msg + "$";
+
+  # ── `rewrite.originStamp`'s DANGLING-INCLUDES REFUSAL ──
+  # Same fixture as `ci/tests/rewrite.nix`'s `regDangling`/`normDangling`/`stampedDangling` — an
+  # inline includes entry with no key and no keyRef, which gen-aspects' module system synthesizes a
+  # key for regardless of what the author wrote ("orphan/includes/0"). That file's cells assert
+  # THAT it refuses (`tryEval` — a boolean, and `tryEval` discards the thrown text, same reason as
+  # every other guard on this page); this one asserts WHICH entry the message names.
+  regDangling = mkAspectRegistry {
+    keySemantics.nixos = {
+      category = "class";
+    };
+    modules = [
+      {
+        config.aspects.orphan = {
+          nixos = { };
+          includes = [ { } ];
+        };
+      }
+    ];
+  };
+  normDangling = genLink.normalize regDangling.config.aspects;
+  stampedDangling = genLink.originStamp {
+    normalized = normDangling;
+    origin = [ "x" ];
+  };
+
+  # The engine's own text, transcribed rather than composed here (same convention as
+  # `unresolvedRelatumRefusal` above) — `lib/rewrite.nix`'s `relabelFn` is where this is specified.
+  danglingIncludesRefusal =
+    origin: k:
+    "gen-link.rewrite: an includes entry in origin '${origin}' names '${k}', which is not a key in this source's registry (check the includes entry naming it, or that a node with this key exists)";
 in
 {
   config.flake.testsError.link-refusals = {
@@ -142,6 +173,19 @@ in
       expectedError = {
         type = "ThrownError";
         msg = exactly (unresolvedRelatumRefusal "b/nb" "dbreq" "aspect" 0);
+      };
+    };
+  };
+
+  # ── THE DANGLING INCLUDES ENTRY, BY ITS OWN TEXT ──
+  # `ci/tests/rewrite.nix`'s `test-dangling-includes-refuses-by-name` is the boolean half of this
+  # claim; this is the half that says WHICH entry the refusal names.
+  config.flake.testsError.rewrite-refusals = {
+    test-dangling-includes-message-names-the-entry = {
+      expr = stampedDangling.graph.vertices;
+      expectedError = {
+        type = "ThrownError";
+        msg = exactly (danglingIncludesRefusal "x" "orphan/includes/0");
       };
     };
   };

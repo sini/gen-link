@@ -29,8 +29,10 @@ let
     k:
     if refByToken ? ${k} then
       ref.refIdentifier refByToken.${k}
+    else if nodesByKey ? ${k} then
+      ref.nodeIdentifier origin nodesByKey.${k}
     else
-      ref.nodeIdentifier origin nodesByKey.${k};
+      throw "gen-link.rewrite: an includes entry in origin '${ref.renderOrigin origin}' names '${k}', which is not a key in this source's registry (check the includes entry naming it, or that a node with this key exists)";
 
   # Split an alias target ("apps/media/postgres") into { chain; last } so `identity.key` recomputes.
   splitSlash = s: builtins.filter (x: builtins.isString x && x != "") (builtins.split "/" s);
