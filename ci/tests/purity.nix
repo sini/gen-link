@@ -182,6 +182,28 @@ in
     expected = [ ];
   };
 
+  # Positive control for the scan itself: the same `scan` call, in the same run, over `sources`
+  # with one entry appended that carries a real, unstripped forbidden token. A green cell above is
+  # evidence only if this fires — otherwise a broken `hasInfix`, a scan disconnected from
+  # `sources`, or a dead strip would report clean by construction rather than because the library
+  # is actually free of these tokens. `test-control-strip-cuts-at-comments-not-inside-strings`
+  # below exercises the same predicate but over a literal `probe`, never `sources` itself, and
+  # `test-walk-descends-into-subdirectories` plants its violations in a synthetic fixture tree
+  # under `ci/tests/_fixtures/`, not the library `sources` the guard cell above actually reads —
+  # neither couples the detector to the real scan's own subject the way this cell does.
+  flake.tests.purity.test-detector-catches-injected-violation = {
+    expr = scan (
+      sources
+      ++ [
+        {
+          name = "<injected>";
+          code = stripComments "  foo = lib.types.str; # comment mentioning nixpkgs is stripped";
+        }
+      ]
+    );
+    expected = [ "<injected>: 'lib.'" ];
+  };
+
   # What the cell above is a statement ABOUT. Its `[ ]` is produced just as readily by a scan that
   # reads the wrong tree, or no tree, as by a library that is clean, and neither the detector cells
   # below nor a guard on the source list's SIZE can tell those apart — the first never touch
