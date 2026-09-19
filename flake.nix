@@ -34,8 +34,11 @@
     gen-schema.url = "github:sini/gen-schema";
     gen-algebra.url = "github:sini/gen-algebra";
 
+    # gen-scope declares no gen-schema of its own, so it opens no door onto the reflection
+    # authority and owes no pair here. The invariant at `ci/tests/lock-shape.nix` is unchanged
+    # and still holds — there is nothing left at this door to collapse, and gen-aspects' pair
+    # below still carries the one that remains.
     gen-scope.url = "github:sini/gen-scope";
-    gen-scope.inputs.gen-schema.follows = "gen-schema";
 
     gen-aspects.url = "github:sini/gen-aspects";
     gen-aspects.inputs.gen-schema.follows = "gen-schema";

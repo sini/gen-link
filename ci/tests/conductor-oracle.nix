@@ -169,6 +169,16 @@ let
     # No boundary marks. Written down rather than defaulted: this is the axis where silence must
     # never read as access.
     marks = _: [ ];
+    # No order mark: the one-layer order over L̂ with `$` tied to it, which is what "this query
+    # carries no order mark" is written down as. Under it the lexicographic product degenerates to
+    # the identity and the effective order is `viewOrder` exactly, so this cell measures the
+    # materialization it measured before. Required on `marks`' terms — a defaulted identity would
+    # make the unmarked competition a decision nobody made on the axis that decides who wins.
+    orderMark = genView.labelOrder {
+      alphabet = viewLabels;
+      layers = [ [ "parent" ] ];
+      endOfPath = 0;
+    };
   };
   # Placement is a family BESIDE the declaration, never a field of it — which cell the result lands
   # in is a placement fact.

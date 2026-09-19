@@ -13,8 +13,9 @@
     gen-aspects.url = "github:sini/gen-aspects";
     gen-aspects.inputs.gen-schema.follows = "gen-schema";
 
+    # gen-scope declares no gen-schema of its own — it opens no door onto the reflection
+    # authority and owes no pair here. gen-aspects' pair above carries the one that remains.
     gen-scope.url = "github:sini/gen-scope";
-    gen-scope.inputs.gen-schema.follows = "gen-schema";
     # ★ THE MINT IS ITS OWN DOOR NOW, AND IT NEEDS THE SAME COLLAPSE. The content-address FORMULA
     # moved out of gen-schema into a dependency-free leaf, so "one gen-schema" no longer implies
     # one encoding: gen-schema, gen-scope and gen-aspects each carry a gen-identity of their own,
