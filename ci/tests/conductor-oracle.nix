@@ -261,7 +261,7 @@ in
       value = cfg.value;
     };
     expected = {
-      cell = [ "app/nixos@output" ];
+      cell = [ "[\"app\",\"nixos\",\"output\"]" ];
       scopes = [ "app" ];
       value = [ appNixos ];
     };
