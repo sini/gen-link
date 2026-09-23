@@ -18,10 +18,25 @@ let
 
   # The origin label datum gen-identity's `hashIdentity` hashes (design §Identity): the "/"-joined
   # origin list.
-  originLabel = origin: prelude.concatStringsSep "/" origin;
+  originLabel = origin: prelude.concatStringsSep "/" (segs "originLabel" origin);
 
   # Surface rendering (manifests / errors / keySemantics keys): [] -> "self".
-  renderOrigin = origin: if origin == [ ] then selfName else prelude.concatStringsSep "/" origin;
+  renderOrigin =
+    origin: if segs "renderOrigin" origin == [ ] then selfName else prelude.concatStringsSep "/" origin;
+
+  # An origin is a list of strings; anything else is refused by name (ADR-0025 item 1) rather than
+  # aborting inside `concatStringsSep`. The message names the TYPE and never interpolates the value,
+  # because interpolating a non-string is itself the coercion abort being replaced.
+  segs =
+    who: origin:
+    if builtins.isList origin && builtins.all builtins.isString origin then
+      origin
+    else
+      throw (
+        "gen-link.${who}: got ${builtins.typeOf origin}"
+        + (if builtins.isList origin then " holding a non-string" else "")
+        + ", expected an origin (a list of strings)"
+      );
 
   # ── THE IDENTIFIER ──
   # ADR-0016 ruling 5 separates IDENTIFIER — the name a node carries as a vertex, what an edge

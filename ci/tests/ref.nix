@@ -58,4 +58,61 @@
       emptyRender = "self";
     };
   };
+  # A wrong-typed origin is REFUSED, catchably (den-hoag-bkdkg); before the guard each aborted past
+  # `tryEval`, crashing this cell. The message is pinned in `ci/tests-error.nix`. The last two arms
+  # are the controls.
+  flake.tests.ref.test-wrong-typed-origin-refused-catchably = {
+    expr =
+      map
+        (
+          { who, origin }:
+          (builtins.tryEval (genLink.${who} origin)).success
+        )
+        [
+          {
+            who = "originLabel";
+            origin = { };
+          }
+          {
+            who = "originLabel";
+            origin = [ { } ];
+          }
+          {
+            who = "renderOrigin";
+            origin = { };
+          }
+          {
+            who = "renderOrigin";
+            origin = "y";
+          }
+          {
+            who = "originLabel";
+            origin = [ "y" ];
+          }
+          {
+            who = "renderOrigin";
+            origin = [ "y" ];
+          }
+        ];
+    expected = [
+      false
+      false
+      false
+      false
+      true
+      true
+    ];
+  };
+  # The guards sit in the bodies, so the doors stay plain lambdas: a wrapper that made one a functor
+  # set would make `functionArgs` abort here.
+  flake.tests.ref.test-origin-doors-are-plain-lambdas = {
+    expr = map builtins.functionArgs [
+      genLink.originLabel
+      genLink.renderOrigin
+    ];
+    expected = [
+      { }
+      { }
+    ];
+  };
 }

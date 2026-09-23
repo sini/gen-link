@@ -189,4 +189,23 @@ in
       };
     };
   };
+
+  # ── AN ORIGIN THAT IS NOT A LIST OF STRINGS ── (den-hoag-bkdkg)
+  # Each aborted inside `concatStringsSep` before the guard (`cannot coerce a set to a string`).
+  config.flake.testsError.origin-refusals =
+    let
+      cell = who: origin: got: {
+        expr = genLink.${who} origin;
+        expectedError = {
+          type = "ThrownError";
+          msg = exactly "gen-link.${who}: got ${got}, expected an origin (a list of strings)";
+        };
+      };
+    in
+    {
+      test-origin-label-set = cell "originLabel" { name = "y"; } "set";
+      test-origin-label-list-of-set = cell "originLabel" [ { name = "y"; } ] "list holding a non-string";
+      test-render-origin-set = cell "renderOrigin" { name = "y"; } "set";
+      test-render-origin-string = cell "renderOrigin" "y" "string";
+    };
 }
