@@ -264,10 +264,15 @@ The sufficiency claim — **gen-link sequences the real siblings and adds only o
 If any sibling were stubbed, the chain breaks.
 
 ```bash
-nix flake check ./ci                       # build + run the full suite
-cd ci && just ci                           # run all tests
-cd ci && just ci conductor-oracle          # run one suite
+nix develop ./ci --command ci              # run all tests, guarded
+nix develop ./ci --command ci conductor-oracle  # run one suite, guarded
+nix flake check ./ci                       # build + run the full suite; unguarded
 ```
+
+`ci` refuses when anything under a declared read root is unknown to git — any extension or name,
+`_`-prefixed included — and the remedy is `git add` or a move. The bare `nix-unit --flake ./ci#tests`
+and `nix flake check ./ci` are unguarded: they read a git-filtered copy of the tree, so an untracked
+cell is silently absent and the run stays green.
 
 **105 tests across 16 suites** (`nix-unit --flake ./ci#tests` ⇒ `105/105 successful`, `f10ab2a`): `authority`, `conductor-oracle`, `contract`, `demo`, `entry`, `facets`, `identifier`, `link`, `lock-shape`, `minting`, `normalize`, `purity`, `ref`, `rewrite`, `smoke`, and `union`. `identity` was renamed `identifier`, and `wire` split into `authority`, `lock-shape` and `minting`. The `purity` suite asserts the `lib/**` surface never touches `nixpkgs.lib`, enforcing the Class B invariant.
 
