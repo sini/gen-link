@@ -305,12 +305,19 @@ let
           # OPERATORS. The predecessor fused them into one `select` that used `null` for both "not
           # a binding here" and "the value", so a provider whose tags were legitimately null was
           # indistinguishable from one that provided nothing.
+          #
+          # ★ `marks` IS `_: [ ]` BECAUSE THE FEDERATION DECLARES NO BOUNDARY. gen-view requires the
+          # field (ADR-0026: a boundary the query may omit fails open), so "no marks" is written
+          # down here, at the one site where an origin boundary would belong. None exists: an
+          # origin is the federation's unit, cross-origin includes are its purpose, and a node
+          # record carries `{ origin; key; provided; }` and nothing boundary-shaped.
           resolvedProvides =
             (view.referenceResolution {
               engine = scope;
               name = "resolvedProvides";
               wellFormed = n: (n.decls.provided or [ ]) != [ ];
               project = n: n.decls.provided;
+              marks = _: [ ];
               localShadowsImport = true;
               importShadowsParent = true;
               transitiveImports = false;

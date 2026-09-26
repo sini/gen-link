@@ -720,11 +720,11 @@
         "gen-prelude": "gen-prelude_18"
       },
       "locked": {
-        "lastModified": 1790381996,
-        "narHash": "sha256-Tko4HrX0m9eWkb1QD7KC0wkVejirtqL+5SSDrBZCKa8=",
+        "lastModified": 1790396588,
+        "narHash": "sha256-GO4MQOmhxVxXPefPF7/ftOe+hJho6GFxAU7yc9kw5wY=",
         "owner": "sini",
         "repo": "gen-view",
-        "rev": "c2bc4da4bbcd5d19a6d9b57239d2827f9ec534fa",
+        "rev": "ce0cc43c19ece8b16683f76a8bbfcedd8d52bbd7",
         "type": "github"
       },
       "original": {
