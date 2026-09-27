@@ -60,6 +60,18 @@ let
             parsedRef = null;
           }
         ]
+      else if builtins.isString inc then
+        # SPEC PATCH (den-hoag-zxgan): a bare string is a by-key local reference — the same edge
+        # shape as by-value (the string IS the target's `.key`, exactly as `inc.key` is above), so a
+        # dangling one is refused by `rewrite.originStamp`'s existing lookup, catchably, with no new
+        # refusal code (den-hoag-2zjg1 ruling B / TERM "i": a bare string is always a reference).
+        [
+          {
+            from = node.key;
+            to = inc;
+            parsedRef = null;
+          }
+        ]
       else
         [ ]
     ) node.includes;

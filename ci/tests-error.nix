@@ -87,6 +87,28 @@ let
   danglingIncludesRefusal =
     origin: k:
     "gen-link.rewrite: an includes entry in origin '${origin}' names '${k}', which is not a key in this source's registry (check the includes entry naming it, or that a node with this key exists)";
+
+  # A BARE-STRING includes entry naming no sibling key (den-hoag-zxgan): same fixture as
+  # `ci/tests/rewrite.nix`'s `regBareStringDangling` — the SAME `rewrite.originStamp` refusal as
+  # `regDangling` above fires, this time naming the string AS WRITTEN rather than a synthesized key.
+  regBareStringDangling = mkAspectRegistry {
+    keySemantics.nixos = {
+      category = "class";
+    };
+    modules = [
+      {
+        config.aspects.orphanstr = {
+          nixos = { };
+          includes = [ "no-such-sibling" ];
+        };
+      }
+    ];
+  };
+  normBareStringDangling = genLink.normalize regBareStringDangling.config.aspects;
+  stampedBareStringDangling = genLink.originStamp {
+    normalized = normBareStringDangling;
+    origin = [ "x" ];
+  };
 in
 {
   config.flake.testsError.link-refusals = {
@@ -186,6 +208,16 @@ in
       expectedError = {
         type = "ThrownError";
         msg = exactly (danglingIncludesRefusal "x" "orphan/includes/0");
+      };
+    };
+    # `ci/tests/rewrite.nix`'s `test-barestring-dangling-refuses-by-name` is the boolean half; this
+    # is the half that says the message names the bare string exactly as written, not a synthesized
+    # key — the tell that a bare-string includes entry is a REFERENCE (den-hoag-2zjg1), not content.
+    test-barestring-dangling-message-names-the-entry = {
+      expr = stampedBareStringDangling.graph.vertices;
+      expectedError = {
+        type = "ThrownError";
+        msg = exactly (danglingIncludesRefusal "x" "no-such-sibling");
       };
     };
   };
