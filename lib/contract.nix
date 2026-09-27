@@ -14,40 +14,63 @@ let
   # capability: turn the provides LIST into a record (tags -> marker fields -> record.fromAttrs), then
   # call record.assertSatisfies (which returns the record or throws). gen-link pre-computes `missing`
   # only to name the edge in the error; on success assertSatisfies IS the arbiter (load-bearing).
-  checkCapability =
-    {
-      edgeName,
-      provides,
-      requires,
-    }:
+  # `door` is the published door the caller invoked, which the refusal names first (R6): the export
+  # below, or `gen-link.link` for the edges `link` checks.
+  capability =
+    door: r:
     let
+      inherit (r) edgeName provides requires;
       providesRecord = record.fromAttrs (prelude.genAttrs provides (_: true));
       missing = builtins.filter (t: !(record.has providesRecord t)) requires;
     in
     if missing == [ ] then
       record.assertSatisfies providesRecord requires
     else
-      throw "gen-link.contract: edge '${edgeName}' fails capability — provider missing required tag(s): ${builtins.concatStringsSep ", " missing} (provides: ${builtins.concatStringsSep ", " provides})";
+      throw "${door}: edge '${edgeName}' fails capability — provider missing required tag(s): ${builtins.concatStringsSep ", " missing} (provides: ${builtins.concatStringsSep ", " provides})";
 
   # refined: delegate to checkRefinements; a non-empty violation list is a loud error.
-  checkRefined =
-    {
-      edgeName,
-      refinedType,
-      value,
-    }:
+  refined =
+    door: r:
     let
+      inherit (r) edgeName refinedType value;
       violations = schema.checkRefinements edgeName refinedType value;
     in
     if violations == [ ] then
       value
     else
-      throw "gen-link.contract: edge '${edgeName}' fails refinement — ${
+      throw "${door}: edge '${edgeName}' fails refinement — ${
         builtins.concatStringsSep "; " (map (v: v.message) violations)
       }";
+
+  # Both published doors take a data RECORD (every field required), so a missing field is refused by
+  # name and an extra one admitted (R5), catchably — the native formals refused both past `tryEval`.
+  # The check is forced by the result's own condition, at the call.
+  checkCapability =
+    args:
+    capability "gen-link.checkCapability" (
+      prelude.checkRequired "gen-link.checkCapability" [
+        "edgeName"
+        "provides"
+        "requires"
+      ] args
+    );
+  checkRefined =
+    args:
+    refined "gen-link.checkRefined" (
+      prelude.checkRequired "gen-link.checkRefined" [
+        "edgeName"
+        "refinedType"
+        "value"
+      ] args
+    );
 in
 {
-  inherit checkCapability checkRefined;
+  inherit
+    capability
+    refined
+    checkCapability
+    checkRefined
+    ;
   # exposed for tests: the record `has` predicate.
   _recordHas = record.has;
 }

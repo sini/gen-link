@@ -36,23 +36,64 @@
   manifest,
 }:
 let
+  door = "gen-link.link";
+
   identifierOf = r: ref.refIdentifier (ref.parseRef r);
+
+  # A `wire` filler is an IDENTIFIER — an origin-qualified reference, as a string or as the structured
+  # `{ origin; path; }` — and a declaration (a stamped aspect value) is refused by name (B2 (b)). The
+  # stamp such a value carries is its source tree's, not the federation's, which `link` mints inside
+  # the call, so there is nothing to compare it against. The refusal is this door's, not `keyRef`'s.
+  fillerIdentifierOf =
+    site: filler:
+    if
+      builtins.isString filler || (builtins.isAttrs filler && filler ? path && !(filler ? id_hash))
+    then
+      identifierOf filler
+    else
+      throw "${door}: ${site} is ${
+        if builtins.isAttrs filler && filler ? id_hash then
+          "a declaration"
+        else
+          "a ${builtins.typeOf filler}"
+      }; a wire filler is an identifier: an origin-qualified reference string (\"<origin>/<path>\") or { origin; path; }";
 
   # The minting kind of every federation node. One kind, because the identity key set is the node's
   # own identifier plus its relatum labels and nothing here relates two different sorts of thing.
   aspectKind = "aspect";
 
+  # The door's record is MIXED (`sources` required, `wire` optional) and closed over the whole set, and
+  # so is each source record (`registry` required; `origin`, `alias`, `keySemantics` read below): both
+  # compose the two shared checks rather than native formals, which refused a missing or unknown field
+  # past `tryEval`. The call record is checked ahead of the result record, so the refusal meets the
+  # caller at the call.
+  checkSource =
+    s:
+    let
+      c = prelude.checkOptions "${door} (a source)" [ "registry" "origin" "alias" "keySemantics" ] (
+        prelude.checkRequired "${door} (a source)" [ "registry" ] s
+      );
+    in
+    builtins.seq (ref.checkOrigin "link" (c.origin or [ ])) c;
+
   link =
-    {
-      sources,
-      wire ? { },
-    }:
+    args:
+    let
+      r = prelude.checkOptions door [ "sources" "wire" ] (prelude.checkRequired door [ "sources" ] args);
+      sources = map checkSource r.sources;
+    in
+    builtins.seq (prelude.foldl' (_: s: builtins.seq s null) null sources) (
+      linkOf sources (r.wire or { })
+    );
+
+  linkOf =
+    sources: wire:
     let
       # ── steps 1+2: normalize + origin-rewrite + disjoint union ──────────────────────────────────
       stamped = map (
         s:
-        rewrite.originStamp {
-          normalized = normalize.normalize s.registry;
+        rewrite.stamp {
+          normalized = normalize.normalizeAt door s.registry;
           origin = s.origin or [ ];
           alias = s.alias or { };
         }
@@ -105,7 +146,9 @@ let
           # VALUE is the filler's identifier. ADR-0024 as amended makes the string that keys the
           # identity the same string an incident edge carries, so choosing a label is choosing a
           # traversal token — and `hole:` names the mechanism rather than the relation.
-          relata = prelude.mapAttrs (_facet: filler: identifierOf filler) fillings;
+          relata = prelude.mapAttrs (
+            facet: filler: fillerIdentifierOf "wire filler at '${requirerRef}.${facet}'" filler
+          ) fillings;
           # ★ A FILLING FILLS A DECLARED HOLE, AND THAT IS THE OTHER HALF OF THE COMPLETENESS GUARD.
           # The guard below demands holes ⊆ wired; this demands wired ⊆ holes, and together the wire
           # entry set for a node IS its declared hole set. Without it a `wire` entry naming a facet
@@ -118,7 +161,7 @@ let
           typed = prelude.mapAttrsToList (
             facet: filler:
             let
-              fEntry = entryOf (identifierOf filler) "wire filler '${filler}'";
+              fEntry = entryOf relata.${facet} "wire filler '${filler}'";
               edgeName = "${requirerRef}#${facet} <- ${filler}";
             in
             if !(builtins.elem facet holes) then
@@ -126,7 +169,7 @@ let
                 if holes == [ ] then "none" else builtins.concatStringsSep ", " holes
               }). Declare the hole (`${facet} = { requires = [ … ]; }`, with a `category = \"facet\"` keySemantics entry) or drop the filling."
             else if facets.contractOf rKs facet == "refined" then
-              contract.checkRefined {
+              contract.refined door {
                 inherit edgeName;
                 # A refined facet TYPES the edge with a gen-schema refined TYPE. gen-schema
                 # `checkRefinements` reads `type.__schema.refinements`, so it MUST be handed a proper
@@ -139,7 +182,7 @@ let
                 value = fEntry.node;
               }
             else
-              contract.checkCapability {
+              contract.capability door {
                 inherit edgeName;
                 provides = facets.providesOf (ksOf fEntry.origin) fEntry.node;
                 requires = facets.requiresOf rEntry.node facet;

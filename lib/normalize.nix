@@ -37,7 +37,7 @@ let
   # carrying the parsed ref. A raw-fn / guard include with no readable key contributes no federated
   # edge in the base mechanism.
   edgesOf =
-    node:
+    resolveKey: node:
     prelude.concatMap (
       inc:
       if builtins.isAttrs inc && (inc.__keyRef or false) then
@@ -61,14 +61,15 @@ let
           }
         ]
       else if builtins.isString inc then
-        # SPEC PATCH (den-hoag-zxgan): a bare string is a by-key local reference — the same edge
-        # shape as by-value (the string IS the target's `.key`, exactly as `inc.key` is above), so a
-        # dangling one is refused by `rewrite.originStamp`'s existing lookup, catchably, with no new
-        # refusal code (den-hoag-2zjg1 ruling B / TERM "i": a bare string is always a reference).
+        # A bare string is a by-key local reference (den-hoag-2zjg1 ruling B / TERM "i": a bare string
+        # is always a reference) — the same edge shape as by-value, its target the entry it names. It
+        # is an IDENTIFIER, so it resolves through `prelude.resolve`'s identifier arm over this
+        # registry's own nodes: one naming nothing is refused there, by name and catchably, naming
+        # the door the caller invoked (den-hoag-7gp66 P1).
         [
           {
             from = node.key;
-            to = inc;
+            to = resolveKey inc;
             parsedRef = null;
           }
         ]
@@ -76,8 +77,10 @@ let
         [ ]
     ) node.includes;
 
-  normalize =
-    registry:
+  # `door` is the published door the caller invoked — this library's `normalize`, or `link`, which
+  # normalizes every source — so a refusal names it first (R6).
+  normalizeAt =
+    door: registry:
     let
       nodes = allNodes registry;
       nodesByKey = prelude.listToAttrs (
@@ -86,7 +89,17 @@ let
           value = n;
         }) nodes
       );
-      allEdges = prelude.concatMap edgesOf nodes;
+      # Bound once per registry, so the resolver's index is built once and not per include. The
+      # verdict is gen-aspects' own: the stamp and the key equal to the canonical entry's, the stamp
+      # read guarded (a stamp-less value is "not this member", not an abort). Only the identifier
+      # arm is reached from here; the verdict is what a declaration handed to the same binding meets.
+      resolveKey = prelude.resolve {
+        entries = nodesByKey;
+        isCanonical = v: k: (v.id_hash or null) == nodesByKey.${k}.id_hash && (v.key or null) == k;
+        hint = "key";
+        form = "an aspect node";
+      } door;
+      allEdges = prelude.concatMap (edgesOf resolveKey) nodes;
       refByToken = prelude.listToAttrs (
         map (e: {
           name = e.to;
@@ -98,10 +111,12 @@ let
     {
       inherit nodesByKey edges refByToken;
     };
+  normalize = normalizeAt "gen-link.normalize";
 in
 {
   inherit
     normalize
+    normalizeAt
     isNode
     hasRefPrefix
     refPrefix

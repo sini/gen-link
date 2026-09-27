@@ -59,6 +59,7 @@ let
   refIdentifier = r: "${renderOrigin r.origin}/${r.key}";
 in
 {
+  checkOrigin = segs;
   inherit
     parseRef
     originLabel

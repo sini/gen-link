@@ -89,8 +89,8 @@ let
     "gen-link.rewrite: an includes entry in origin '${origin}' names '${k}', which is not a key in this source's registry (check the includes entry naming it, or that a node with this key exists)";
 
   # A BARE-STRING includes entry naming no sibling key (den-hoag-zxgan): same fixture as
-  # `ci/tests/rewrite.nix`'s `regBareStringDangling` — the SAME `rewrite.originStamp` refusal as
-  # `regDangling` above fires, this time naming the string AS WRITTEN rather than a synthesized key.
+  # `ci/tests/rewrite.nix`'s `regBareStringDangling`. A bare string is an identifier, so it resolves
+  # through `prelude.resolve` and is refused there, naming the string AS WRITTEN and the door called.
   regBareStringDangling = mkAspectRegistry {
     keySemantics.nixos = {
       category = "class";
@@ -108,6 +108,24 @@ let
   stampedBareStringDangling = genLink.originStamp {
     normalized = normBareStringDangling;
     origin = [ "x" ];
+  };
+
+  # prelude.resolve's identifier-arm refusal, named by the door the caller invoked.
+  unresolvedIdentifierRefusal =
+    door: id: "${door}: reference '${id}' names no entry of the registry (in prelude.resolve)";
+
+  # A requirer demanding a tag its filler does not provide: the contract refusal `link` reaches.
+  underProvided = {
+    sources = [
+      (fixtures.srcOf [ "a" ] fixtures.provider)
+      (fixtures.srcOf [ "b" ] {
+        apps.app = {
+          nixos = { };
+          dbreq.requires = [ "admin" ];
+        };
+      })
+    ];
+    wire."b/apps/app".dbreq = "a/apps/media/pg";
   };
 in
 {
@@ -217,10 +235,98 @@ in
       expr = stampedBareStringDangling.graph.vertices;
       expectedError = {
         type = "ThrownError";
-        msg = exactly (danglingIncludesRefusal "x" "no-such-sibling");
+        msg = exactly (unresolvedIdentifierRefusal "gen-link.normalize" "no-such-sibling");
+      };
+    };
+    # The same entry reached through `link` names `link`, the door the caller invoked (R6).
+    test-barestring-dangling-through-link-names-link = {
+      expr =
+        (genLink.link {
+          sources = [
+            {
+              registry = regBareStringDangling.config.aspects;
+              keySemantics = { };
+              origin = [ "x" ];
+            }
+          ];
+        }).manifest;
+      expectedError = {
+        type = "ThrownError";
+        msg = exactly (unresolvedIdentifierRefusal "gen-link.link" "no-such-sibling");
       };
     };
   };
+
+  # den-hoag-7gp66 P1: the closed doors' shared checks, message pinned on the real path, and the
+  # refusals `link` reaches named as `gen-link.link` (R6).
+  config.flake.testsError.doors =
+    let
+      thrown = expr: msg: {
+        inherit expr;
+        expectedError = {
+          type = "ThrownError";
+          msg = exactly msg;
+        };
+      };
+      missing =
+        door: field: required:
+        "${door}: required field '${field}' is missing (required: ${required}) (in prelude.checkRequired)";
+      unknown =
+        door: accepted:
+        "${door}: 'notAnOption' is not an option of this door; the options are closed (accepted: ${accepted}) (in prelude.checkOptions)";
+      stamp = {
+        normalized = normBareStringDangling;
+        origin = [ "x" ];
+      };
+      src = builtins.head fixtures.sources;
+    in
+    {
+      test-check-capability-missing = thrown (genLink.checkCapability {
+        edgeName = "e";
+        provides = [ ];
+      }) (missing "gen-link.checkCapability" "requires" "'edgeName', 'provides', 'requires'");
+      test-check-capability-refusal-names-the-door =
+        thrown
+          (genLink.checkCapability {
+            edgeName = "e";
+            provides = [ "read" ];
+            requires = [ "admin" ];
+          })
+          "gen-link.checkCapability: edge 'e' fails capability — provider missing required tag(s): admin (provides: read)";
+      test-check-refined-missing = thrown (genLink.checkRefined {
+        edgeName = "e";
+        refinedType = null;
+      }) (missing "gen-link.checkRefined" "value" "'edgeName', 'refinedType', 'value'");
+      test-origin-stamp-missing = thrown (genLink.originStamp { normalized = { }; }) (
+        missing "gen-link.originStamp" "origin" "'normalized', 'origin'"
+      );
+      test-origin-stamp-unknown = thrown (genLink.originStamp (stamp // { notAnOption = 1; })) (
+        unknown "gen-link.originStamp" "'normalized', 'origin', 'alias'"
+      );
+      test-origin-stamp-bad-origin = thrown (genLink.originStamp (
+        stamp // { origin = "x"; }
+      )) "gen-link.originStamp: got string, expected an origin (a list of strings)";
+      test-link-missing = thrown (genLink.link { }) (missing "gen-link.link" "sources" "'sources'");
+      test-link-unknown = thrown (genLink.link {
+        sources = [ ];
+        notAnOption = 1;
+      }) (unknown "gen-link.link" "'sources', 'wire'");
+      test-link-source-unknown = thrown (genLink.link { sources = [ (src // { notAnOption = 1; }) ]; }) (
+        unknown "gen-link.link (a source)" "'registry', 'origin', 'alias', 'keySemantics'"
+      );
+      test-link-source-bad-origin = thrown (genLink.link {
+        sources = [ (src // { origin = "a"; }) ];
+      }) "gen-link.link: got string, expected an origin (a list of strings)";
+      # B2 (b): a declaration handed to `wire` is refused by `link`, not by `keyRef` beneath it.
+      test-wire-declaration-refused-as-link =
+        thrown
+          (linkManifest {
+            wire."b/apps/app".dbreq = src.registry.apps.media.pg;
+          })
+          "gen-link.link: wire filler at 'b/apps/app.dbreq' is a declaration; a wire filler is an identifier: an origin-qualified reference string (\"<origin>/<path>\") or { origin; path; }";
+      # R6: the capability refusal `link` reaches names `link`, the door the caller invoked.
+      test-link-reached-capability-names-link = thrown (genLink.link underProvided).manifest "gen-link.link: edge 'b/apps/app#dbreq <- a/apps/media/pg' fails capability — provider missing required tag(s): admin (provides: read, write)";
+    };
 
   # ── AN ORIGIN THAT IS NOT A LIST OF STRINGS ── (den-hoag-bkdkg)
   # Each aborted inside `concatStringsSep` before the guard (`cannot coerce a set to a string`).

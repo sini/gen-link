@@ -58,7 +58,8 @@ let
         };
       };
 
-  originStamp =
+  # The stamp itself. `link` calls it with the record it builds; the published door is below.
+  stamp =
     {
       normalized,
       origin,
@@ -94,7 +95,27 @@ let
     {
       inherit graph idToNode;
     };
+
+  # The published door's record is MIXED (`normalized`/`origin` required, `alias` optional) and closed
+  # over the whole set, so it composes the two shared checks rather than native formals, which refused
+  # a missing or unknown field past `tryEval`. The result is a record, so the check is forced ahead of
+  # it: the refusal meets the caller at the call, not at a later field read. The origin is checked
+  # here too, so a bad one is refused naming this door rather than `renderOrigin`.
+  originStamp =
+    args:
+    let
+      door = "gen-link.originStamp";
+      r = prelude.checkOptions door [ "normalized" "origin" "alias" ] (
+        prelude.checkRequired door [ "normalized" "origin" ] args
+      );
+    in
+    builtins.seq (ref.checkOrigin "originStamp" r.origin) (stamp r);
 in
 {
-  inherit originStamp toGraph relabelFn;
+  inherit
+    stamp
+    originStamp
+    toGraph
+    relabelFn
+    ;
 }
