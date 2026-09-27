@@ -37,12 +37,12 @@ let
   # carrying the parsed ref. A raw-fn / guard include with no readable key contributes no federated
   # edge in the base mechanism.
   edgesOf =
-    resolveKey: node:
+    door: resolveKey: node:
     prelude.concatMap (
       inc:
       if builtins.isAttrs inc && (inc.__keyRef or false) then
         let
-          r = ref.parseRef inc;
+          r = ref.parseRefAt door inc;
           token = refPrefix + ref.renderOrigin r.origin + "/" + r.key;
         in
         [
@@ -99,7 +99,7 @@ let
         hint = "key";
         form = "an aspect node";
       } door;
-      allEdges = prelude.concatMap (edgesOf resolveKey) nodes;
+      allEdges = prelude.concatMap (edgesOf door resolveKey) nodes;
       refByToken = prelude.listToAttrs (
         map (e: {
           name = e.to;

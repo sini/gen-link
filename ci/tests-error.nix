@@ -334,6 +334,50 @@ in
           "gen-link.link: wire filler at 'b/apps/app.dbreq' is a declaration; a wire filler is an identifier: an origin-qualified reference string (\"<origin>/<path>\") or { origin; path; }";
       # R6: the capability refusal `link` reaches names `link`, the door the caller invoked.
       test-link-reached-capability-names-link = thrown (genLink.link underProvided).manifest "gen-link.link: edge 'b/apps/app#dbreq <- a/apps/media/pg' fails capability — provider missing required tag(s): admin (provides: read, write)";
+
+      # den-hoag-7gp66 P1 residue, item 1: keyRef's own malformed-reference-string refusal, reached
+      # through a `wire` KEY, named `gen-link.link` (R6) rather than `gen-aspects.keyRef` beneath it.
+      test-link-malformed-wire-key-names-link =
+        thrown (linkManifest { wire."///".dbreq = "a/apps/media/pg"; })
+          "gen-link.link: got the string \"///\", which has no non-empty segment, expected a reference: an origin-qualified string (\"<origin>/<path>\") or { path; origin ? [ ]; }, each a \"/\"-joined string or a list of strings";
+
+      # den-hoag-7gp66 P1 residue, item 2a: the SAME capability refusal as
+      # `test-link-reached-capability-names-link`, over the SAME edge, but with the filler written as
+      # a structured `{ origin; path; }` rather than a string. Before the fix this aborted uncatchably
+      # inside `"${filler}"` (edgeName's string interpolation, forced only on this failing path) —
+      # never reaching the throw below at all; the identical message on both forms is what shows the
+      # structured filler now resolves to the same identifier `edgeName` names for the string form.
+      test-link-structured-filler-reaches-capability-refusal =
+        thrown
+          (genLink.link (
+            underProvided
+            // {
+              wire."b/apps/app".dbreq = {
+                origin = [ "a" ];
+                path = [
+                  "apps"
+                  "media"
+                  "pg"
+                ];
+              };
+            }
+          )).manifest
+          "gen-link.link: edge 'b/apps/app#dbreq <- a/apps/media/pg' fails capability — provider missing required tag(s): admin (provides: read, write)";
+
+      # den-hoag-7gp66 P1 residue, item 2b: a non-list `sources` aborted inside `map` before the fix.
+      test-link-non-list-sources-names-link = thrown (genLink.link {
+        sources = "not-a-list";
+      }) "gen-link.link: 'sources' is string, expected a list";
+
+      # den-hoag-7gp66 P1 residue, item 2c: a non-set `wire.<requirerRef>` aborted inside `mapAttrs`
+      # before the fix.
+      test-link-non-set-wire-entry-names-link =
+        thrown
+          (genLink.link {
+            sources = fixtures.sources;
+            wire."b/apps/app" = "not-a-set";
+          }).manifest
+          "gen-link.link: wire entry 'b/apps/app' is string, expected a set of { <facet> = <filler>; }";
     };
 
   # ── AN ORIGIN THAT IS NOT A LIST OF STRINGS ── (den-hoag-bkdkg)

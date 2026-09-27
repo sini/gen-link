@@ -8,13 +8,59 @@
 let
   selfName = "self";
 
-  # Parse a reference to `{ __keyRef; origin; path; key }`. `self/<path>` maps to origin [].
-  parseRef =
-    ref:
+  # keyRef's own malformed-reference-string refusals name gen-aspects (den-hoag-7gp66 P1 residue,
+  # R6 defect): a caller who reaches it through a gen-link door — `link`'s wire keys, `normalize`'s
+  # by-key includes — made the mistake at that door, not inside keyRef. Pre-validate the SAME shape
+  # keyRef accepts and refuse under the calling door first (same move as `contract.capability`'s
+  # pre-computed `missing`); once validated, keyRef cannot fail here and stays the arbiter for
+  # splitting/keying only.
+  refShapeOk = v: builtins.isString v || (builtins.isList v && builtins.all builtins.isString v);
+
+  refShapeRefusal =
+    door: got:
+    throw (
+      "${door}: got ${got}, expected a reference: an origin-qualified string "
+      + "(\"<origin>/<path>\") or { path; origin ? [ ]; }, each a \"/\"-joined string or a list of strings"
+    );
+
+  checkRefShape =
+    door: ref:
+    if builtins.isString ref then
+      (
+        if builtins.filter (s: builtins.isString s && s != "") (builtins.split "/" ref) == [ ] then
+          refShapeRefusal door "the string \"${ref}\", which has no non-empty segment"
+        else
+          null
+      )
+    else if builtins.isAttrs ref && ref ? path then
+      if !(refShapeOk (ref.origin or [ ])) then
+        refShapeRefusal door (
+          "origin = ${builtins.typeOf ref.origin}"
+          + (if builtins.isList ref.origin then " holding a non-string" else "")
+        )
+      else if !(refShapeOk ref.path) then
+        refShapeRefusal door (
+          "path = ${builtins.typeOf ref.path}"
+          + (if builtins.isList ref.path then " holding a non-string" else "")
+        )
+      else
+        null
+    else
+      refShapeRefusal door (
+        if builtins.isAttrs ref then "a set with no 'path' field" else builtins.typeOf ref
+      );
+
+  # Parse a reference to `{ __keyRef; origin; path; key }`. `self/<path>` maps to origin []. `door`
+  # is the published door the caller invoked — this library's own `parseRef`, or `link`/`normalize`,
+  # which parse a reference internally — so a malformed reference is refused by name (R6).
+  parseRefAt =
+    door: ref:
     let
-      r = aspects.keyRef ref;
+      r = builtins.seq (checkRefShape door ref) (aspects.keyRef ref);
     in
     if r.origin == [ selfName ] then r // { origin = [ ]; } else r;
+
+  parseRef = parseRefAt "gen-link.parseRef";
 
   # The origin label datum gen-identity's `hashIdentity` hashes (design §Identity): the "/"-joined
   # origin list.
@@ -62,6 +108,7 @@ in
   checkOrigin = segs;
   inherit
     parseRef
+    parseRefAt
     originLabel
     renderOrigin
     selfName

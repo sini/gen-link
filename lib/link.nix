@@ -38,7 +38,7 @@
 let
   door = "gen-link.link";
 
-  identifierOf = r: ref.refIdentifier (ref.parseRef r);
+  identifierOf = r: ref.refIdentifier (ref.parseRefAt door r);
 
   # A `wire` filler is an IDENTIFIER — an origin-qualified reference, as a string or as the structured
   # `{ origin; path; }` — and a declaration (a stamped aspect value) is refused by name (B2 (b)). The
@@ -80,7 +80,13 @@ let
     args:
     let
       r = prelude.checkOptions door [ "sources" "wire" ] (prelude.checkRequired door [ "sources" ] args);
-      sources = map checkSource r.sources;
+      # A non-list `sources` aborted uncatchably inside `map` (ADR-0025 item 1); refused by name here
+      # instead (den-hoag-7gp66 P1 residue).
+      sources =
+        if !(builtins.isList r.sources) then
+          throw "${door}: 'sources' is ${builtins.typeOf r.sources}, expected a list"
+        else
+          map checkSource r.sources;
     in
     builtins.seq (prelude.foldl' (_: s: builtins.seq s null) null sources) (
       linkOf sources (r.wire or { })
@@ -138,63 +144,73 @@ let
       # ── step 3a: type-check each wired facet, and read off the relata it contributes ────────────
       wireOf =
         requirerRef: fillings:
-        let
-          identifier = identifierOf requirerRef;
-          rEntry = entryOf identifier "wire target '${requirerRef}'";
-          rKs = ksOf rEntry.origin;
-          # A hole filling contributes a relatum whose LABEL is the facet name, unprefixed, and whose
-          # VALUE is the filler's identifier. ADR-0024 as amended makes the string that keys the
-          # identity the same string an incident edge carries, so choosing a label is choosing a
-          # traversal token — and `hole:` names the mechanism rather than the relation.
-          relata = prelude.mapAttrs (
-            facet: filler: fillerIdentifierOf "wire filler at '${requirerRef}.${facet}'" filler
-          ) fillings;
-          # ★ A FILLING FILLS A DECLARED HOLE, AND THAT IS THE OTHER HALF OF THE COMPLETENESS GUARD.
-          # The guard below demands holes ⊆ wired; this demands wired ⊆ holes, and together the wire
-          # entry set for a node IS its declared hole set. Without it a `wire` entry naming a facet
-          # the source never declared was accepted — `contractOf` answers "capability" for any key at
-          # all and `requiresOf` answers `[ ]` for an undeclared one, so the contract check passed
-          # vacuously — and it still became a relatum, forking the requirer's instantiation identity
-          # on a name no source declares (Backpack: a filling is against a SIGNATURE).
-          holes = facets.holesOf rKs rEntry.node;
-          # discharge each filled facet contract.
-          typed = prelude.mapAttrsToList (
-            facet: filler:
-            let
-              fEntry = entryOf relata.${facet} "wire filler '${filler}'";
-              edgeName = "${requirerRef}#${facet} <- ${filler}";
-            in
-            if !(builtins.elem facet holes) then
-              throw "gen-link.link: wire entry '${requirerRef}.${facet}' names no declared hole on '${identifier}' (declared: ${
-                if holes == [ ] then "none" else builtins.concatStringsSep ", " holes
-              }). Declare the hole (`${facet} = { requires = [ … ]; }`, with a `category = \"facet\"` keySemantics entry) or drop the filling."
-            else if facets.contractOf rKs facet == "refined" then
-              contract.refined door {
-                inherit edgeName;
-                # A refined facet TYPES the edge with a gen-schema refined TYPE. gen-schema
-                # `checkRefinements` reads `type.__schema.refinements`, so it MUST be handed a proper
-                # refined type (`genSchema.refined <base> <refinements>`), NOT a raw refinements list —
-                # a raw list carries no `__schema`, and the check silently no-ops (blind). The source
-                # declares the facet's contract as a real refined type; gen-link reads THAT.
-                refinedType =
-                  rKs.${facet}.refinedType
-                    or (throw "gen-link.link: facet '${facet}' declared refined but carries no `refinedType` (a genSchema.refined <base> <refinements> type)");
-                value = fEntry.node;
-              }
-            else
-              contract.capability door {
-                inherit edgeName;
-                provides = facets.providesOf (ksOf fEntry.origin) fEntry.node;
-                requires = facets.requiresOf rEntry.node facet;
-              }
-          ) fillings;
-        in
-        # deepSeq forces every contract check to RUN (its throws fire) before the record is read.
-        builtins.deepSeq typed {
-          inherit identifier relata;
-          inherit (rEntry) origin node;
-          site = "wire entry '${requirerRef}'";
-        };
+        # A non-set `wire.<requirerRef>` aborted uncatchably inside `mapAttrs` (ADR-0025 item 1);
+        # refused by name here instead (den-hoag-7gp66 P1 residue).
+        if !(builtins.isAttrs fillings) then
+          throw "${door}: wire entry '${requirerRef}' is ${builtins.typeOf fillings}, expected a set of { <facet> = <filler>; }"
+        else
+          let
+            identifier = identifierOf requirerRef;
+            rEntry = entryOf identifier "wire target '${requirerRef}'";
+            rKs = ksOf rEntry.origin;
+            # A hole filling contributes a relatum whose LABEL is the facet name, unprefixed, and whose
+            # VALUE is the filler's identifier. ADR-0024 as amended makes the string that keys the
+            # identity the same string an incident edge carries, so choosing a label is choosing a
+            # traversal token — and `hole:` names the mechanism rather than the relation.
+            relata = prelude.mapAttrs (
+              facet: filler: fillerIdentifierOf "wire filler at '${requirerRef}.${facet}'" filler
+            ) fillings;
+            # ★ A FILLING FILLS A DECLARED HOLE, AND THAT IS THE OTHER HALF OF THE COMPLETENESS GUARD.
+            # The guard below demands holes ⊆ wired; this demands wired ⊆ holes, and together the wire
+            # entry set for a node IS its declared hole set. Without it a `wire` entry naming a facet
+            # the source never declared was accepted — `contractOf` answers "capability" for any key at
+            # all and `requiresOf` answers `[ ]` for an undeclared one, so the contract check passed
+            # vacuously — and it still became a relatum, forking the requirer's instantiation identity
+            # on a name no source declares (Backpack: a filling is against a SIGNATURE).
+            holes = facets.holesOf rKs rEntry.node;
+            # discharge each filled facet contract.
+            typed = prelude.mapAttrsToList (
+              facet: filler:
+              let
+                # The filler's IDENTIFIER (already computed in `relata`, and validated as a string by
+                # `fillerIdentifierOf`), never the raw filler value: a structured `{ origin; path; }`
+                # filler interpolated raw aborted uncatchably ("cannot coerce a set to a string",
+                # ADR-0025 item 1, den-hoag-7gp66 P1 residue). Every other message in this file names a
+                # filler by its identifier, not its raw shape.
+                fEntry = entryOf relata.${facet} "wire filler '${relata.${facet}}'";
+                edgeName = "${requirerRef}#${facet} <- ${relata.${facet}}";
+              in
+              if !(builtins.elem facet holes) then
+                throw "gen-link.link: wire entry '${requirerRef}.${facet}' names no declared hole on '${identifier}' (declared: ${
+                  if holes == [ ] then "none" else builtins.concatStringsSep ", " holes
+                }). Declare the hole (`${facet} = { requires = [ … ]; }`, with a `category = \"facet\"` keySemantics entry) or drop the filling."
+              else if facets.contractOf rKs facet == "refined" then
+                contract.refined door {
+                  inherit edgeName;
+                  # A refined facet TYPES the edge with a gen-schema refined TYPE. gen-schema
+                  # `checkRefinements` reads `type.__schema.refinements`, so it MUST be handed a proper
+                  # refined type (`genSchema.refined <base> <refinements>`), NOT a raw refinements list —
+                  # a raw list carries no `__schema`, and the check silently no-ops (blind). The source
+                  # declares the facet's contract as a real refined type; gen-link reads THAT.
+                  refinedType =
+                    rKs.${facet}.refinedType
+                      or (throw "gen-link.link: facet '${facet}' declared refined but carries no `refinedType` (a genSchema.refined <base> <refinements> type)");
+                  value = fEntry.node;
+                }
+              else
+                contract.capability door {
+                  inherit edgeName;
+                  provides = facets.providesOf (ksOf fEntry.origin) fEntry.node;
+                  requires = facets.requiresOf rEntry.node facet;
+                }
+            ) fillings;
+          in
+          # deepSeq forces every contract check to RUN (its throws fire) before the record is read.
+          builtins.deepSeq typed {
+            inherit identifier relata;
+            inherit (rEntry) origin node;
+            site = "wire entry '${requirerRef}'";
+          };
       wired = prelude.mapAttrsToList wireOf wire;
 
       # ── step 3b: the pass, DERIVED from the wire graph before any emitter exists ────────────────

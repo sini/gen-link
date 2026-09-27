@@ -159,4 +159,49 @@ in
       declaration = false;
     };
   };
+
+  # den-hoag-7gp66 P1 residue: three pre-existing UNCATCHABLE aborts reached through `link`, each now
+  # a NAMED, catchable refusal (message pinned in `ci/tests-error.nix`'s `doors`) — or, for the
+  # structured filler, simply no longer forced through a raw-value string interpolation at all.
+  flake.tests.doors.test-link-residue = {
+    expr = {
+      # (1) keyRef's own malformed-reference-string refusal, reached through a `wire` KEY, named
+      # `gen-link.link` rather than `gen-aspects.keyRef` (R6).
+      malformedWireKeyRefused =
+        !(caught (builtins.deepSeq (fixtures.linkManifest { wire."///".dbreq = "a/apps/media/pg"; }) true));
+      # (2a) a structured `{ origin; path; }` filler used to abort inside `"${filler}"` (edgeName's
+      # string interpolation) whenever the contract check forced it. On the SAME satisfying
+      # federation the string-filler form links, it no longer even reaches that branch.
+      structuredFillerLinks = caught (
+        builtins.deepSeq (fixtures.linkManifest {
+          wire."b/apps/app".dbreq = {
+            origin = [ "a" ];
+            path = [
+              "apps"
+              "media"
+              "pg"
+            ];
+          };
+        }) true
+      );
+      # (2b) a non-list `sources`.
+      nonListSourcesRefused = !(caught (genLink.link { sources = "not-a-list"; }));
+      # (2c) a non-set `wire.<requirerRef>`.
+      wireEntryNonSetRefused =
+        !(caught (
+          builtins.deepSeq
+            (genLink.link {
+              inherit (fixtures) sources;
+              wire."b/apps/app" = "not-a-set";
+            }).manifest
+            true
+        ));
+    };
+    expected = {
+      malformedWireKeyRefused = true;
+      structuredFillerLinks = true;
+      nonListSourcesRefused = true;
+      wireEntryNonSetRefused = true;
+    };
+  };
 }
