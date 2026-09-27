@@ -28,6 +28,9 @@
 # and that must be a refusal rather than a guess.
 { prelude }:
 let
+  # Its native formals stay, with an ellipsis, because `functionArgs` of this door is asserted: a
+  # missing required field is still the evaluator's abort, and an unknown one is refused by name,
+  # catchably, by the shared check forced at application.
   entry =
     {
       kind,
@@ -36,17 +39,27 @@ let
       to,
       toKind,
       via ? null,
-    }:
-    {
-      inherit
-        kind
-        from
-        fromKind
-        to
-        toKind
-        via
-        ;
-    };
+      ...
+    }@args:
+    builtins.seq
+      (prelude.checkOptions "gen-link.entry" [
+        "kind"
+        "from"
+        "fromKind"
+        "to"
+        "toKind"
+        "via"
+      ] args)
+      {
+        inherit
+          kind
+          from
+          fromKind
+          to
+          toKind
+          via
+          ;
+      };
 
   # Deterministic ordering for diff stability.
   #

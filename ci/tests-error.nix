@@ -306,6 +306,14 @@ in
       test-origin-stamp-bad-origin = thrown (genLink.originStamp (
         stamp // { origin = "x"; }
       )) "gen-link.originStamp: got string, expected an origin (a list of strings)";
+      test-entry-unknown = thrown (genLink.entry {
+        kind = "hole";
+        from = "a/x";
+        fromKind = "aspect";
+        to = "b/y";
+        toKind = "aspect";
+        notAnOption = 1;
+      }) (unknown "gen-link.entry" "'kind', 'from', 'fromKind', 'to', 'toKind', 'via'");
       test-link-missing = thrown (genLink.link { }) (missing "gen-link.link" "sources" "'sources'");
       test-link-unknown = thrown (genLink.link {
         sources = [ ];

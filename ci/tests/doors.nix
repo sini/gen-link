@@ -3,8 +3,9 @@
 # past `tryEval`. Catchability is asserted here; each message is pinned on the real path in
 # `ci/tests-error.nix` (`doors`).
 #
-# `entry` is not here: its native formals are the subject of `minting.test-both-endpoint-kinds-are-
-# required-formals`, a `functionArgs` assertion, so it keeps them.
+# `entry`'s native formals are the subject of `minting.test-both-endpoint-kinds-are-required-formals`,
+# a `functionArgs` assertion, so it keeps them with an ellipsis: an unknown field is refused by name,
+# and a missing required one is still the evaluator's abort (not asserted here: `tryEval` cannot).
 {
   genLink,
   aspects,
@@ -39,6 +40,13 @@ let
     origin = [ "x" ];
   };
   src = builtins.head fixtures.sources;
+  entryArgs = {
+    kind = "hole";
+    from = "a/x";
+    fromKind = "aspect";
+    to = "b/y";
+    toKind = "aspect";
+  };
 in
 {
   # Two RECORD doors: a missing field refused, an extra one admitted (R5).
@@ -117,6 +125,19 @@ in
       sourceMissingRefused = true;
       sourceUnknownRefused = true;
       sourceBadOriginRefused = true;
+    };
+  };
+
+  flake.tests.doors.test-entry = {
+    expr = {
+      valid = caught (genLink.entry entryArgs);
+      withVia = caught (genLink.entry (entryArgs // { via = "dbreq"; }));
+      unknownRefused = !(caught (genLink.entry (entryArgs // { notAnOption = 1; })));
+    };
+    expected = {
+      valid = true;
+      withVia = true;
+      unknownRefused = true;
     };
   };
 
