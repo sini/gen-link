@@ -21,10 +21,10 @@ let
     let
       inherit (r) edgeName provides requires;
       providesRecord = record.fromAttrs (prelude.genAttrs provides (_: true));
-      missing = builtins.filter (t: !(record.has providesRecord t)) requires;
+      missing = builtins.filter (t: !(record.has t providesRecord)) requires;
     in
     if missing == [ ] then
-      record.assertSatisfies providesRecord requires
+      record.assertSatisfies requires providesRecord
     else
       throw "${door}: edge '${edgeName}' fails capability — provider missing required tag(s): ${builtins.concatStringsSep ", " missing} (provides: ${builtins.concatStringsSep ", " provides})";
 

@@ -74,7 +74,7 @@ Entry: `inputs.gen-link.lib` (flake), or `gen.lib.link` through the hub. Root `d
 | `contractOf`      | `ks -> facet -> "capability" \| "refined"`                          |
 | `checkCapability` | `{ edgeName, provides, requires } -> record \| throw`               |
 | `checkRefined`    | `{ edgeName, refinedType, value } -> value \| throw`                |
-| `_recordHas`      | `record -> tag -> bool` (gen-algebra `record.has`, re-exposed)      |
+| `_recordHas`      | `tag -> record -> bool` (gen-algebra `record.has`, re-exposed)      |
 
 **Manifest, conductor** — `lib/manifest.nix`, `lib/link.nix`
 

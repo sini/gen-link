@@ -37,7 +37,7 @@ let
 in
 {
   flake.tests.contract.test-capability-satisfied-returns-record = {
-    expr = genLink._recordHas ok "read" && genLink._recordHas ok "write";
+    expr = genLink._recordHas "read" ok && genLink._recordHas "write" ok;
     expected = true;
   };
   flake.tests.contract.test-capability-unsatisfied-throws = {

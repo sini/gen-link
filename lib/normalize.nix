@@ -93,12 +93,17 @@ let
       # verdict is gen-aspects' own: the stamp and the key equal to the canonical entry's, the stamp
       # read guarded (a stamp-less value is "not this member", not an abort). Only the identifier
       # arm is reached from here; the verdict is what a declaration handed to the same binding meets.
-      resolveKey = prelude.resolve {
-        entries = nodesByKey;
-        isCanonical = v: k: (v.id_hash or null) == nodesByKey.${k}.id_hash && (v.key or null) == k;
-        hint = "key";
-        form = "an aspect node";
-      } door;
+      resolveKey =
+        prelude.resolve
+          {
+            hint = "key";
+            form = "an aspect node";
+          }
+          {
+            entries = nodesByKey;
+            isCanonical = v: k: (v.id_hash or null) == nodesByKey.${k}.id_hash && (v.key or null) == k;
+          }
+          door;
       allEdges = prelude.concatMap (edgesOf door resolveKey) nodes;
       refByToken = prelude.listToAttrs (
         map (e: {
