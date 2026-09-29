@@ -274,7 +274,7 @@ nix flake check ./ci                       # build + run the full suite; unguard
 and `nix flake check ./ci` are unguarded: they read a git-filtered copy of the tree, so an untracked
 cell is silently absent and the run stays green.
 
-**105 tests across 16 suites** (`nix-unit --flake ./ci#tests` ⇒ `105/105 successful`, `f10ab2a`): `authority`, `conductor-oracle`, `contract`, `demo`, `entry`, `facets`, `identifier`, `link`, `lock-shape`, `minting`, `normalize`, `purity`, `ref`, `rewrite`, `smoke`, and `union`. `identity` was renamed `identifier`, and `wire` split into `authority`, `lock-shape` and `minting`. The `purity` suite asserts the `lib/**` surface never touches `nixpkgs.lib`, enforcing the Class B invariant.
+**125 tests across 18 suites** (`nix-unit --flake ./ci#tests` ⇒ `125/125 successful`): `authority`, `conductor-oracle`, `contract`, `demo`, `doors`, `entry`, `facets`, `gen-ci-examples`, `identifier`, `link`, `lock-shape`, `minting`, `normalize`, `purity`, `ref`, `rewrite`, `smoke`, and `union`. `identity` was renamed `identifier`, and `wire` split into `authority`, `lock-shape` and `minting`. The `purity` suite asserts the `lib/**` surface never touches `nixpkgs.lib`, enforcing the Class B invariant. `gen-ci-examples` is gen-harness's examples guard (declared in `ci/tests/examples.nix`, `gen.ci.examples`): it holds that `examples/` directory names equal the declared names, and that every declared example forces under `deepSeq`.
 
 ## Theoretical Foundations
 
