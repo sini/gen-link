@@ -219,13 +219,14 @@ in
 
   # ── THE DANGLING INCLUDES ENTRY, BY ITS OWN TEXT ──
   # `ci/tests/rewrite.nix`'s `test-dangling-includes-refuses-by-name` is the boolean half of this
-  # claim; this is the half that says WHICH entry the refusal names.
+  # claim; this is the half that says WHICH entry the refusal names. An inline entry's key ends in
+  # its list position, nixpkgs `listOf`'s segment `[definition n-entry m]` as gen-merge folds it.
   config.flake.testsError.rewrite-refusals = {
     test-dangling-includes-message-names-the-entry = {
       expr = stampedDangling.graph.vertices;
       expectedError = {
         type = "ThrownError";
-        msg = exactly (danglingIncludesRefusal "x" "orphan/includes/0");
+        msg = exactly (danglingIncludesRefusal "x" "orphan/includes/[definition 1-entry 1]");
       };
     };
     # `ci/tests/rewrite.nix`'s `test-barestring-dangling-refuses-by-name` is the boolean half; this
