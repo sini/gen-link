@@ -5,6 +5,7 @@
 {
   genLink,
   genView,
+  genScope,
   genMerge,
   genSchema,
   genIdentity,
@@ -116,12 +117,12 @@ let
   # this graph declares and leaves empty: one position, no incidence, so the only path from the root
   # is the empty one and the datum is reached at distance 0.
   viewLabels = genView.edgeLabels { letters = [ "parent" ]; };
-  viewAdmission = genView.labelWellFormedness {
-    alphabet = viewLabels;
+  viewAdmission = genScope.wellFormed {
+    alphabet = viewLabels.letters;
     expression = "parent*";
   };
-  viewOrder = genView.labelOrder {
-    alphabet = viewLabels;
+  viewOrder = genScope.labelOrder {
+    alphabet = viewLabels.letters;
     layers = [ [ "parent" ] ];
     endOfPath = -1;
   };
@@ -150,6 +151,7 @@ let
     ];
   };
   cfg = genView.viewRelation {
+    engine = genScope;
     definition = genView.compositions.channel {
       channel = "nixos";
       relation = "content";
@@ -174,8 +176,8 @@ let
     # the identity and the effective order is `viewOrder` exactly, so this cell measures the
     # materialization it measured before. Required on `marks`' terms — a defaulted identity would
     # make the unmarked competition a decision nobody made on the axis that decides who wins.
-    orderMark = genView.labelOrder {
-      alphabet = viewLabels;
+    orderMark = genScope.labelOrder {
+      alphabet = viewLabels.letters;
       layers = [ [ "parent" ] ];
       endOfPath = 0;
     };
