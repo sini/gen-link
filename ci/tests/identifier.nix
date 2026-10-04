@@ -87,19 +87,41 @@ in
     expected = true;
   };
 
-  # ── THE COORDINATE IS THE ASPECT CHAIN, NOT THE `.key` ATTRIBUTE ──
-  # `key` is a live option on an aspect node and overriding it looks like it should re-name the node.
-  # It does not: the coordinate is `pathKey ((meta.aspect-chain or []) ++ [ name ])`, which is the
-  # same reading a keyRef's path gets, and joining the two by a spelling nothing keeps in step is how
-  # they would start disagreeing. `name` is the live field — the positive control below.
+  # ── THE COORDINATE IS THE DECLARED PATH, NOT A FIELD A CALLER WRITES ──
+  # The identifier is built from `aspects.key`, which for a typed node is `pathKey meta.loc`: the
+  # declared path the aspect type stamps from the merge position (gen-aspects identity design §1).
+  # `key` and `name` are live options on an aspect node and overriding either looks like it should
+  # re-name the node. Neither does: `.key` is the default of `aspects.key` and never read by it, and
+  # `name` is a rendering of the declared path, never an input. The positive control moves the
+  # declared path itself, so a dead harness cannot satisfy the two cells that expect no move.
   flake.tests.identifier.test-overriding-the-key-attribute-does-not-rename-the-vertex = {
     expr =
       builtins.elem "x/helper"
         (stampTampered (n: n // { key = "totally/different"; })).graph.vertices;
     expected = true;
   };
-  flake.tests.identifier.test-overriding-the-name-does-rename-the-vertex = {
+  flake.tests.identifier.test-overriding-the-name-does-not-rename-the-vertex = {
     expr = builtins.elem "x/helper" (stampTampered (n: n // { name = "renamed"; })).graph.vertices;
+    expected = true;
+  };
+  # POSITIVE CONTROL: the declared path moved (with the chain that renders it, which must agree or
+  # the key refuses) moves the vertex.
+  flake.tests.identifier.test-moving-the-declared-path-does-rename-the-vertex = {
+    expr =
+      builtins.elem "x/helper"
+        (stampTampered (
+          n:
+          n
+          // {
+            meta = n.meta // {
+              loc = [
+                "elsewhere"
+                "renamed"
+              ];
+              aspect-chain = [ "elsewhere" ];
+            };
+          }
+        )).graph.vertices;
     expected = false;
   };
 }

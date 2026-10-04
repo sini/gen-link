@@ -37,10 +37,12 @@ let
   # Split an alias target ("apps/media/postgres") into { chain; last } so `identity.key` recomputes.
   splitSlash = s: builtins.filter (x: builtins.isString x && x != "") (builtins.split "/" s);
 
-  # Apply an alias to a node: override `name` + `meta.aspect-chain` so `aspects.key` (= pathKey
-  # ((meta.aspect-chain or []) ++ [name]), NOT `.key`) recomputes to the new path. Overriding `.key`
-  # alone is DEAD — the identifier never reads it. This makes the aliased node genuinely a different
-  # vertex (Fix 3). `alias` is passed EXPLICITLY (it is `originStamp`'s formal, not this outer `let`'s).
+  # Apply an alias to a node: relabel its declared path, `meta.loc`, so `aspects.key` (= pathKey
+  # meta.loc for a typed node, NOT `.key` and NOT `name`) recomputes to the new path. `name` and
+  # `meta.aspect-chain` are its renderings and are rewritten to agree with it: a chain that contradicts
+  # the declared path refuses by name. Overriding `.key` alone is DEAD — the identifier never reads it.
+  # This makes the aliased node genuinely a different vertex (Fix 3). `alias` is passed EXPLICITLY (it
+  # is `originStamp`'s formal, not this outer `let`'s).
   aliasNode =
     alias: k: n:
     if !(alias ? ${k}) then
@@ -55,6 +57,7 @@ let
         name = prelude.last segs;
         meta = (n.meta or { }) // {
           aspect-chain = prelude.init segs;
+          loc = segs;
         };
       };
 
