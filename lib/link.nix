@@ -344,6 +344,10 @@ let
           {
             children = _self: _id: { };
             imports = _self: id: importIndex.${id} or [ ];
+            # The evaluation's boundary floor, which the resolution authority reads in every
+            # resolution (ADR-0026; gen-scope D1). The federation is gen-authored and declares no
+            # boundary, so none is stated — the same reason `marks` below is `_: [ ]`.
+            marks = _self: _id: [ ];
             # gen-view's reference resolution (Néron et al. 2015 rule (X), the forward arm over the
             # include relation): resolves a node's nearest cross-origin PROVIDER's capability tags.
             # The requirer provides nothing, so it is not a binding and resolution walks the include
