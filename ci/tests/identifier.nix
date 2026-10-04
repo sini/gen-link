@@ -9,9 +9,29 @@
   genLink,
   aspects,
   mkAspectRegistry,
+  genPrelude,
   ...
 }:
 let
+  # The identifier's two constructions, which `link` reads and does not re-export.
+  ref = import ../../lib/ref.nix {
+    prelude = genPrelude;
+    inherit aspects;
+  };
+  distinct = xs: builtins.length xs == builtins.length (genPrelude.unique xs);
+  # `"f/x"` beside `f.x`: one segment holding the separator, and two segments.
+  pair =
+    (mkAspectRegistry {
+      keySemantics = classKs;
+      modules = [
+        {
+          config.aspects = {
+            "f/x".nixos = { };
+            f.x.nixos = { };
+          };
+        }
+      ];
+    }).config.aspects;
   # ★ ONE vocabulary, read by the registries AND by the source entries. `link` refuses a source that
   # declares no `keySemantics` — a class-only federation says so with this attrset rather than by
   # omitting the field, because the omission's other reading is "the vocabulary was not passed", and
@@ -123,5 +143,55 @@ in
           }
         )).graph.vertices;
     expected = false;
+  };
+
+  # ── THE IDENTIFIER IS INJECTIVE (den-hoag-gywcg) ──
+  # Every string that names a node is a rendering, and a rendering that names must be injective
+  # (ADR-0034, g1qy0). The key renders through gen-aspects' one escaping rendering, and the origin is
+  # ONE segment of the identifier, so the origin/key boundary is recoverable. Before, each pair below
+  # rendered alike.
+  flake.tests.identifier.test-the-identifier-is-injective = {
+    expr = {
+      separatorKey = distinct [
+        (ref.nodeIdentifier [ "o" ] pair."f/x")
+        (ref.nodeIdentifier [ "o" ] pair.f.x)
+      ];
+      originBoundary = distinct [
+        (ref.refIdentifier {
+          origin = [ "a" ];
+          key = aspects.pathKey [
+            "b"
+            "c"
+          ];
+        })
+        (ref.refIdentifier {
+          origin = [
+            "a"
+            "b"
+          ];
+          key = aspects.pathKey [ "c" ];
+        })
+      ];
+      separatorOrigin = distinct [
+        (genLink.originLabel [ "a/b" ])
+        (genLink.originLabel [
+          "a"
+          "b"
+        ])
+      ];
+      # CONTROLS: two plainly distinct origins, and the documented self alias.
+      ctl = distinct [
+        (genLink.originLabel [ "a" ])
+        (genLink.originLabel [ "b" ])
+      ];
+      selfIsEmpty = genLink.renderOrigin [ ] == genLink.renderOrigin [ "self" ];
+    };
+    expected = {
+      separatorKey = true;
+      originBoundary = true;
+      separatorOrigin = true;
+      ctl = true;
+      selfIsEmpty = true;
+    };
   };
 }
