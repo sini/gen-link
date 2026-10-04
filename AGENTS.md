@@ -47,11 +47,11 @@ Entry: `inputs.gen-link.lib` (flake), or `gen.lib.link` through the hub. Root `d
 
 **References & origin** — `lib/ref.nix`
 
-| Export         | Signature                                                                                                      |
-| -------------- | -------------------------------------------------------------------------------------------------------------- |
-| `parseRef`     | `ref -> { __keyRef; origin; path; key }` (string sugar or structured `{ origin; path }`; `self` ⇒ origin `[]`) |
-| `originLabel`  | `origin -> string` — the RAW `"/"`-joined list; `[]` ⇒ `""`, which is where it differs from `renderOrigin`     |
-| `renderOrigin` | `origin -> string` — surface rendering; `[]` ⇒ `"self"`                                                        |
+| Export         | Signature                                                                                                                                                                                                   |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `parseRef`     | `ref -> { __keyRef; origin; path; key }` (string sugar or structured `{ origin; path }`; `self` ⇒ origin `[]`)                                                                                              |
+| `originLabel`  | `origin -> string` — the whole origin as ONE escaped segment, `pathKey [ (pathKey origin) ]` (`[ "a/b" ]` ⇒ `a%252Fb`, `[ "a" "b" ]` ⇒ `a%2Fb`); `[]` ⇒ `""`, which is where it differs from `renderOrigin` |
+| `renderOrigin` | `origin -> string` — surface rendering, the same one segment as `originLabel`; `[]` ⇒ `"self"`. The identifier's first segment is the origin, so the origin/key boundary is recoverable                     |
 
 ★ **There is no identity module and no identity export.** `nodeId`, `keyRefTargetId`, `instantiatedId` and `bindNode` are RETIRED, and `lib/identity.nix` and `lib/wire.nix` are deleted: under one minting authority a per-node minting function on this surface is a second route to the same thing, and all four minted arbitrary input with no membership test. An identifier needs no constructor — a consumer writes `"${renderOrigin origin}/${key}"`, which is the dividend of the name no longer being a digest.
 

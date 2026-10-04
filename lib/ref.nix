@@ -62,13 +62,15 @@ let
 
   parseRef = parseRefAt "gen-link.parseRef";
 
-  # The origin label datum gen-identity's `hashIdentity` hashes (design §Identity): the "/"-joined
-  # origin list.
-  originLabel = origin: prelude.concatStringsSep "/" (segs "originLabel" origin);
+  # The origin label datum gen-identity's `hashIdentity` hashes (design §Identity).
+  # The whole origin is ONE segment of the identifier, escaped twice through gen-aspects' one path
+  # rendering: so `[ "a/b" ]`, `[ "a" "b" ]` and `[ "a" ]` before a key `b/…` render apart, and the
+  # identifier's first segment is the origin, as the string sugar of `keyRef` reads it.
+  originSegment = origin: aspects.pathKey [ (aspects.pathKey origin) ];
+  originLabel = origin: originSegment (segs "originLabel" origin);
 
   # Surface rendering (manifests / errors / keySemantics keys): [] -> "self".
-  renderOrigin =
-    origin: if segs "renderOrigin" origin == [ ] then selfName else prelude.concatStringsSep "/" origin;
+  renderOrigin = origin: if segs "renderOrigin" origin == [ ] then selfName else originSegment origin;
 
   # An origin is a list of strings; anything else is refused by name (ADR-0025 item 1) rather than
   # aborting inside `concatStringsSep`. The message names the TYPE and never interpolates the value,
@@ -111,6 +113,9 @@ in
     parseRefAt
     originLabel
     renderOrigin
+    ;
+  parsePath = aspects.parsePath;
+  inherit
     selfName
     nodeIdentifier
     refIdentifier
