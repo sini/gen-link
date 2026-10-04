@@ -34,13 +34,13 @@ let
     let
       schema = aspects.mkAspectSchema { inherit keySemantics; };
     in
-    merge.evalModuleTree {
-      modules = [
+    merge.evalModuleTree { } (
+      [
         { options.schema = schema.schemaOption; }
         (schema.mkAspectModule { })
       ]
-      ++ modules;
-    };
+      ++ modules
+    );
 
   # Collection A ("a"): a postgres capability provider.
   collectionA = mkReg [

@@ -78,13 +78,13 @@
         let
           schema = aspects.mkAspectSchema { inherit keySemantics; };
         in
-        genMerge.evalModuleTree {
-          modules = [
+        genMerge.evalModuleTree { } (
+          [
             { options.schema = schema.schemaOption; }
             (schema.mkAspectModule { })
           ]
-          ++ modules;
-        };
+          ++ modules
+        );
     in
     gen-harness.lib.mkCi {
       inherit inputs;
