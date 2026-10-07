@@ -5,35 +5,18 @@
   ...
 }:
 let
-  ok = genLink.checkCapability {
-    edgeName = "e1";
-    provides = [
-      "read"
-      "write"
-    ];
-    requires = [ "read" ];
-  };
-  bad = builtins.tryEval (
-    genLink.checkCapability {
-      edgeName = "e2";
-      provides = [ "read" ];
-      requires = [ "admin" ];
-    }
-  );
+  ok =
+    genLink.checkCapability "e1"
+      [ "read" ]
+      [
+        "read"
+        "write"
+      ];
+  bad = builtins.tryEval (genLink.checkCapability "e2" [ "admin" ] [ "read" ]);
   # a refined facet: value must be a valid tcp port.
   portType = genSchema.refined genMerge.types.int genSchema.refinements.tcpPort;
-  refOk = genLink.checkRefined {
-    edgeName = "e3";
-    refinedType = portType;
-    value = 5432;
-  };
-  refBad = builtins.tryEval (
-    genLink.checkRefined {
-      edgeName = "e4";
-      refinedType = portType;
-      value = 99999;
-    }
-  );
+  refOk = genLink.checkRefined "e3" portType 5432;
+  refBad = builtins.tryEval (genLink.checkRefined "e4" portType 99999);
 in
 {
   flake.tests.contract.test-capability-satisfied-returns-record = {

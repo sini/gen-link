@@ -10,14 +10,8 @@ let
     };
     modules = [ { config.aspects.apps.media.pg.nixos = { }; } ];
   };
-  stampedA = genLink.originStamp {
-    normalized = genLink.normalize mkReg.config.aspects;
-    origin = [ "a" ];
-  };
-  stampedB = genLink.originStamp {
-    normalized = genLink.normalize mkReg.config.aspects;
-    origin = [ "b" ];
-  };
+  stampedA = genLink.originStamp { } [ "a" ] (genLink.normalize mkReg.config.aspects);
+  stampedB = genLink.originStamp { } [ "b" ] (genLink.normalize mkReg.config.aspects);
   u = genLink.disjointUnion [
     stampedA
     stampedB

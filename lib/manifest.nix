@@ -22,44 +22,51 @@
 # describe: `from`/`fromKind`, `to`/`toKind`. Reusing `kind` for both would put two vocabularies on
 # one name, which is the conflation this whole migration exists to remove rather than relocate.
 #
-# ★ BOTH ARE REQUIRED FORMALS, NOT DEFAULTED. A defaulted endpoint kind would answer for a node
+# ★ BOTH ARE REQUIRED FIELDS, NOT DEFAULTED. A defaulted endpoint kind would answer for a node
 # whose kind nobody supplied — silently claiming one kind for a node of another, which is precisely
 # the mixed-kind failure the field exists to prevent. An absent kind is a caller that has not decided,
 # and that must be a refusal rather than a guess.
 { prelude }:
 let
-  # Its native formals stay, with an ellipsis, because `functionArgs` of this door is asserted: a
-  # missing required field is still the evaluator's abort, and an unknown one is refused by name,
-  # catchably, by the shared check forced at application.
-  entry =
-    {
-      kind,
-      from,
-      fromKind,
-      to,
-      toKind,
-      via ? null,
-      ...
-    }@args:
-    builtins.seq
-      (prelude.checkOptions "gen-link.entry" [
-        "kind"
-        "from"
-        "fromKind"
-        "to"
-        "toKind"
-        "via"
-      ] args)
-      {
-        inherit
-          kind
-          from
-          fromKind
-          to
-          toKind
-          via
-          ;
-      };
+  # `entry { via ?; } { kind; from; fromKind; to; toKind; }` (den-hoag-7gp66 P2, rules 1, 2 and 5).
+  # The one option, `via`, is a closed options set first. The five operands are ONE keyed record: the
+  # door constructs a row and transforms nothing, so no operand is a subject (rule 4 names none), and
+  # `from`/`to` and `fromKind`/`toKind` are pairs of one sort with no natural order (rule 5 (b), the
+  # owner's own `{ from; to; }`). The record is open (R5): a missing field is refused by name at its
+  # application, catchably, and `via` given on it instead of the options is refused by name
+  # (`optionsStep`). Its contract is published as data through `prelude.door`, `__contract` and its
+  # `next`, which is what the former `functionArgs` assertion read (rule 1, (β)).
+  entry = entryOptions (o: entryRecord (r: entryCore (r // { via = o.via or null; })));
+  entryOptions = prelude.door {
+    name = "gen-link.entry";
+    optional = [ "via" ];
+    next = entryRecordSpec;
+  };
+  entryRecordSpec = {
+    name = "gen-link.entry";
+    required = [
+      "kind"
+      "from"
+      "fromKind"
+      "to"
+      "toKind"
+    ];
+    open = true;
+    optionsStep = entry;
+  };
+  entryRecord = prelude.door entryRecordSpec;
+  # The unchecked core, which `link` calls once per manifest row (spec §p2.3.2: internal callers of a
+  # door call its core, and no check sits in a per-row closure).
+  entryCore = r: {
+    inherit (r)
+      kind
+      from
+      fromKind
+      to
+      toKind
+      via
+      ;
+  };
 
   # Deterministic ordering for diff stability.
   #
@@ -75,5 +82,5 @@ let
     ) entries;
 in
 {
-  inherit entry order;
+  inherit entry entryCore order;
 }

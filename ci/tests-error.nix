@@ -53,7 +53,8 @@ let
     undeclaredHoleRefusal
     ;
 
-  manifestOf = args: (genLink.link args).manifest;
+  # A fixture is the call's data, `{ sources; wire ?; }`: the sources are the subject, the rest the options.
+  manifestOf = f: (genLink.link (removeAttrs f [ "sources" ]) f.sources).manifest;
 
   # The message, pinned to the byte. nixpkgs' metacharacter set is the one the pattern is read under.
   exactly = msg: "^" + lib.escapeRegex msg + "$";
@@ -81,10 +82,7 @@ let
     ];
   };
   normDangling = genLink.normalize regDangling.config.aspects;
-  stampedDangling = genLink.originStamp {
-    normalized = normDangling;
-    origin = [ "x" ];
-  };
+  stampedDangling = genLink.originStamp { } [ "x" ] normDangling;
 
   # The engine's own text, transcribed rather than composed here (same convention as
   # `unresolvedRelatumRefusal` above) — `lib/rewrite.nix`'s `relabelFn` is where this is specified.
@@ -109,10 +107,7 @@ let
     ];
   };
   normBareStringDangling = genLink.normalize regBareStringDangling.config.aspects;
-  stampedBareStringDangling = genLink.originStamp {
-    normalized = normBareStringDangling;
-    origin = [ "x" ];
-  };
+  stampedBareStringDangling = genLink.originStamp { } [ "x" ] normBareStringDangling;
 
   # prelude.resolve's identifier-arm refusal, named by the door the caller invoked.
   unresolvedIdentifierRefusal = refusals.unknownReference;
@@ -168,7 +163,7 @@ in
     # that the message names the ORIGIN and spells the explicit empty declaration. The cell above,
     # over the same requirer WITH its vocabulary, is the control: it names the aspect and the facet.
     test-a-source-without-keysemantics-names-the-origin-and-the-repair = {
-      expr = (genLink.link { sources = fixtures.sourcesMissingKs; }).manifest;
+      expr = (genLink.link { } fixtures.sourcesMissingKs).manifest;
       expectedError = {
         type = "ThrownError";
         msg = exactly (missingKeySemanticsRefusal "b");
@@ -181,7 +176,7 @@ in
     # cannot tell this refusal from the membership one, and `notAFacet` resolves to a filler that IS
     # in the federation, so the membership guard is not what fires.
     test-a-filling-naming-no-declared-hole-names-the-entry-and-the-declared-holes = {
-      expr = (genLink.link fixtures.undeclaredFilling).manifest;
+      expr = manifestOf fixtures.undeclaredFilling;
       expectedError = {
         type = "ThrownError";
         msg = exactly (undeclaredHoleRefusal "b/apps/app" "b/apps/app" "notAFacet" [ "dbreq" ]);
@@ -258,15 +253,13 @@ in
     # The same entry reached through `link` names `link`, the door the caller invoked (R6).
     test-barestring-dangling-through-link-names-link = {
       expr =
-        (genLink.link {
-          sources = [
-            {
-              registry = regBareStringDangling.config.aspects;
-              keySemantics = { };
-              origin = [ "x" ];
-            }
-          ];
-        }).manifest;
+        (genLink.link { } [
+          {
+            registry = regBareStringDangling.config.aspects;
+            keySemantics = { };
+            origin = [ "x" ];
+          }
+        ]).manifest;
       expectedError = {
         type = "ThrownError";
         msg = exactly (unresolvedIdentifierRefusal "gen-link.link" "no-such-sibling");
@@ -274,7 +267,7 @@ in
     };
   };
 
-  # den-hoag-7gp66 P1: the closed doors' shared checks, message pinned on the real path, and the
+  # den-hoag-7gp66 P2: the doors' refusals, message pinned on the real path, and the
   # refusals `link` reaches named as `gen-link.link` (R6).
   config.flake.testsError.doors =
     let
@@ -293,93 +286,54 @@ in
         normalized = normBareStringDangling;
         origin = [ "x" ];
       };
+      row = {
+        kind = "hole";
+        from = "a/x";
+        fromKind = "aspect";
+        to = "b/y";
+        toKind = "aspect";
+      };
       src = builtins.head fixtures.sources;
     in
     {
-      test-check-capability-missing =
-        thrown
-          (genLink.checkCapability {
-            edgeName = "e";
-            provides = [ ];
-          })
-          (
-            missing "gen-link.checkCapability" "requires" [
-              "edgeName"
-              "provides"
-              "requires"
-            ]
-          );
+      # den-hoag-7gp66 P2: `checkCapability` and `checkRefined` are positional, so a missing operand is
+      # structural arity and carries no golden; the capability refusal itself still names the door.
       test-check-capability-refusal-names-the-door =
-        thrown
-          (genLink.checkCapability {
-            edgeName = "e";
-            provides = [ "read" ];
-            requires = [ "admin" ];
-          })
+        thrown (genLink.checkCapability "e" [ "admin" ] [ "read" ])
           "gen-link.checkCapability: edge 'e' fails capability — provider missing required tag(s): admin (provides: read)";
-      test-check-refined-missing =
-        thrown
-          (genLink.checkRefined {
-            edgeName = "e";
-            refinedType = null;
-          })
-          (
-            missing "gen-link.checkRefined" "value" [
-              "edgeName"
-              "refinedType"
-              "value"
-            ]
-          );
-      test-origin-stamp-missing = thrown (genLink.originStamp { normalized = { }; }) (
-        missing "gen-link.originStamp" "origin" [
-          "normalized"
-          "origin"
+      # The options steps (`originStamp`, `entry`, `link`): an unknown option is refused naming the
+      # door and its accepted options, and the old one-record shape is refused by its first field.
+      test-origin-stamp-unknown = thrown (genLink.originStamp { notAnOption = 1; }) (
+        unknown "gen-link.originStamp" [ "alias" ]
+      );
+      test-origin-stamp-old-one-record-shape = thrown (genLink.originStamp stamp) (
+        refusals.unknownOption "gen-link.originStamp" [ "alias" ] "normalized"
+      );
+      test-origin-stamp-bad-origin = thrown (genLink.originStamp { } "x"
+        normBareStringDangling
+      ) "gen-link.originStamp: got string, expected an origin (a list of strings)";
+      test-entry-unknown = thrown (genLink.entry { notAnOption = 1; }) (
+        unknown "gen-link.entry" [ "via" ]
+      );
+      # `entry`'s record step: a missing field is refused by name at its application, and `via` given
+      # on the record rather than the options is refused by name (`optionsStep`, G10).
+      test-entry-record-missing = thrown (genLink.entry { } (removeAttrs row [ "toKind" ])) (
+        missing "gen-link.entry" "toKind" [
+          "kind"
+          "from"
+          "fromKind"
+          "to"
+          "toKind"
         ]
       );
-      test-origin-stamp-unknown = thrown (genLink.originStamp (stamp // { notAnOption = 1; })) (
-        unknown "gen-link.originStamp" [
-          "normalized"
-          "origin"
-          "alias"
-        ]
+      test-entry-option-on-the-record = thrown (genLink.entry { } (row // { via = "dbreq"; })) (
+        refusals.guardedField "gen-link.entry" "gen-link.entry" "via"
       );
-      test-origin-stamp-bad-origin = thrown (genLink.originStamp (
-        stamp // { origin = "x"; }
-      )) "gen-link.originStamp: got string, expected an origin (a list of strings)";
-      test-entry-unknown =
-        thrown
-          (genLink.entry {
-            kind = "hole";
-            from = "a/x";
-            fromKind = "aspect";
-            to = "b/y";
-            toKind = "aspect";
-            notAnOption = 1;
-          })
-          (
-            unknown "gen-link.entry" [
-              "kind"
-              "from"
-              "fromKind"
-              "to"
-              "toKind"
-              "via"
-            ]
-          );
-      test-link-missing = thrown (genLink.link { }) (missing "gen-link.link" "sources" [ "sources" ]);
-      test-link-unknown =
-        thrown
-          (genLink.link {
-            sources = [ ];
-            notAnOption = 1;
-          })
-          (
-            unknown "gen-link.link" [
-              "sources"
-              "wire"
-            ]
-          );
-      test-link-source-unknown = thrown (genLink.link { sources = [ (src // { notAnOption = 1; }) ]; }) (
+      test-link-unknown = thrown (genLink.link { notAnOption = 1; }) (unknown "gen-link.link" [ "wire" ]);
+      test-link-old-one-record-shape = thrown (genLink.link { sources = [ ]; }) (
+        refusals.unknownOption "gen-link.link" [ "wire" ] "sources"
+      );
+      test-link-source-unknown = thrown (genLink.link { } [ (src // { notAnOption = 1; }) ]) (
         unknown "gen-link.link (a source)" [
           "registry"
           "origin"
@@ -387,9 +341,9 @@ in
           "keySemantics"
         ]
       );
-      test-link-source-bad-origin = thrown (genLink.link {
-        sources = [ (src // { origin = "a"; }) ];
-      }) "gen-link.link: got string, expected an origin (a list of strings)";
+      test-link-source-bad-origin = thrown (genLink.link { } [
+        (src // { origin = "a"; })
+      ]) "gen-link.link: got string, expected an origin (a list of strings)";
       # B2 (b): a declaration handed to `wire` is refused by `link`, not by `keyRef` beneath it.
       test-wire-declaration-refused-as-link =
         thrown
@@ -398,7 +352,7 @@ in
           })
           "gen-link.link: wire filler at 'b/apps/app.dbreq' is a declaration; a wire filler is an identifier: an origin-qualified reference string (\"<origin>/<path>\") or { origin; path; }";
       # R6: the capability refusal `link` reaches names `link`, the door the caller invoked.
-      test-link-reached-capability-names-link = thrown (genLink.link underProvided).manifest "gen-link.link: edge 'b/apps/app#dbreq <- a/apps/media/pg' fails capability — provider missing required tag(s): admin (provides: read, write)";
+      test-link-reached-capability-names-link = thrown (manifestOf underProvided) "gen-link.link: edge 'b/apps/app#dbreq <- a/apps/media/pg' fails capability — provider missing required tag(s): admin (provides: read, write)";
 
       # den-hoag-7gp66 P1 residue, item 1: keyRef's own malformed-reference-string refusal, reached
       # through a `wire` KEY, named `gen-link.link` (R6) rather than `gen-aspects.keyRef` beneath it.
@@ -414,7 +368,7 @@ in
       # structured filler now resolves to the same identifier `edgeName` names for the string form.
       test-link-structured-filler-reaches-capability-refusal =
         thrown
-          (genLink.link (
+          (manifestOf (
             underProvided
             // {
               wire."b/apps/app".dbreq = {
@@ -426,22 +380,23 @@ in
                 ];
               };
             }
-          )).manifest
+          ))
           "gen-link.link: edge 'b/apps/app#dbreq <- a/apps/media/pg' fails capability — provider missing required tag(s): admin (provides: read, write)";
 
       # den-hoag-7gp66 P1 residue, item 2b: a non-list `sources` aborted inside `map` before the fix.
-      test-link-non-list-sources-names-link = thrown (genLink.link {
-        sources = "not-a-list";
-      }) "gen-link.link: 'sources' is string, expected a list";
+      test-link-non-list-sources-names-link = thrown (genLink.link { }
+        "not-a-list"
+      ) "gen-link.link: 'sources' is string, expected a list";
 
       # den-hoag-7gp66 P1 residue, item 2c: a non-set `wire.<requirerRef>` aborted inside `mapAttrs`
       # before the fix.
       test-link-non-set-wire-entry-names-link =
         thrown
           (genLink.link {
-            sources = fixtures.sources;
-            wire."b/apps/app" = "not-a-set";
-          }).manifest
+            wire = {
+              "b/apps/app" = "not-a-set";
+            };
+          } fixtures.sources).manifest
           "gen-link.link: wire entry 'b/apps/app' is string, expected a set of { <facet> = <filler>; }";
     };
 

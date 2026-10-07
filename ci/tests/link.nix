@@ -58,33 +58,14 @@ let
       }
     ];
   };
-  result = genLink.link {
-    sources = [
+  result =
+    genLink.link
       {
-        registry = regA.config.aspects;
-        keySemantics = ks;
-        origin = [ "a" ];
+        wire = {
+          "b/apps/app".dbreq = "a/apps/media/pg";
+        };
       }
-      {
-        registry = regB.config.aspects;
-        keySemantics = ks;
-        origin = [ "b" ];
-      }
-    ];
-    wire."b/apps/app".dbreq = "a/apps/media/pg";
-  };
-  holeEntries = builtins.filter (e: e.kind == "hole") result.manifest;
-  includeEntries = builtins.filter (e: e.kind == "includes") result.manifest;
-  appIdentifier = "b/apps/app";
-  # ★ THE REQUIRER HERE HAS TO BE A REAL ONE. This used to wire `a/apps/media/pg` — a pure PROVIDER,
-  # which declares no `dbreq` hole — and the wire site now refuses that before it ever resolves the
-  # filler, so the cell below would have stayed green while measuring the undeclared-hole refusal
-  # under a name that says absent target. `b/apps/app` declares the hole, so the only defect left in
-  # this federation is the filler naming a coordinate nothing carries. (Measured: the provider form
-  # answers `wire entry 'a/apps/media/pg.dbreq' names no declared hole … (declared: none)`.)
-  badWire = builtins.tryEval (
-    (genLink.link {
-      sources = [
+      [
         {
           registry = regA.config.aspects;
           keySemantics = ks;
@@ -96,8 +77,35 @@ let
           origin = [ "b" ];
         }
       ];
-      wire."b/apps/app".dbreq = "a/nonexistent";
-    }).manifest
+  holeEntries = builtins.filter (e: e.kind == "hole") result.manifest;
+  includeEntries = builtins.filter (e: e.kind == "includes") result.manifest;
+  appIdentifier = "b/apps/app";
+  # ★ THE REQUIRER HERE HAS TO BE A REAL ONE. This used to wire `a/apps/media/pg` — a pure PROVIDER,
+  # which declares no `dbreq` hole — and the wire site now refuses that before it ever resolves the
+  # filler, so the cell below would have stayed green while measuring the undeclared-hole refusal
+  # under a name that says absent target. `b/apps/app` declares the hole, so the only defect left in
+  # this federation is the filler naming a coordinate nothing carries. (Measured: the provider form
+  # answers `wire entry 'a/apps/media/pg.dbreq' names no declared hole … (declared: none)`.)
+  badWire = builtins.tryEval (
+    (genLink.link
+      {
+        wire = {
+          "b/apps/app".dbreq = "a/nonexistent";
+        };
+      }
+      [
+        {
+          registry = regA.config.aspects;
+          keySemantics = ks;
+          origin = [ "a" ];
+        }
+        {
+          registry = regB.config.aspects;
+          keySemantics = ks;
+          origin = [ "b" ];
+        }
+      ]
+    ).manifest
   );
   # A MERGED requirer (b/apps/app carries the `dbreq` requires-hole) with NO `wire` entry at all.
   # Both sources are present so the cross-origin `includes` resolves — the ONLY defect is the
@@ -176,8 +184,13 @@ let
     keys:
     builtins.tryEval (
       builtins.deepSeq
-        (genLink.link {
-          sources = [
+        (genLink.link
+          {
+            wire = {
+              "b/apps/app".dbreq = "a/apps/media/pg";
+            };
+          }
+          [
             {
               registry = twoProvidingRegA.config.aspects;
               keySemantics = ks;
@@ -188,9 +201,8 @@ let
               keySemantics = ks;
               origin = [ "b" ];
             }
-          ];
-          wire."b/apps/app".dbreq = "a/apps/media/pg";
-        }).resolved.${appIdentifier}
+          ]
+        ).resolved.${appIdentifier}
         true
     );
   twoProvidingIncludes = linkIncluding [
@@ -219,7 +231,7 @@ let
   ];
   fieldEvaluates =
     res: builtins.map (f: (builtins.tryEval (builtins.deepSeq res.${f} true)).success) fields;
-  links = args: (builtins.tryEval (builtins.deepSeq (genLink.link args).manifest true)).success;
+  links = f: (builtins.tryEval (builtins.deepSeq (fixtures.federate f).manifest true)).success;
 in
 {
   flake.tests.link.test-returns-graph-and-manifest = {

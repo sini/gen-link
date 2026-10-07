@@ -80,7 +80,7 @@ let
       }
     ];
   };
-  result = genLink.link (mkSources // { wire."b/apps/app".dbreq = "a/apps/media/pg"; });
+  result = genLink.link { wire."b/apps/app".dbreq = "a/apps/media/pg"; } mkSources.sources;
 
   # step 2: the two same-path pg nodes are distinct.
   pgIds = builtins.filter (id: result.nodes.${id}.node.key == "apps/media/pg") (
@@ -96,12 +96,9 @@ let
   # step 3 negative: an unsatisfiable capability wire must throw. Project `.manifest` so tryEval FORCES
   # the lazy bound/type-check (the return record reaches WHNF without it — mirrors Task 9's `badWire`).
   bad = builtins.tryEval (
-    (genLink.link (
-      mkSources
-      // {
-        wire."b/apps/app".dbreq = "b/apps/media/pg"; # B/pg provides NOTHING
-      }
-    )).manifest
+    (genLink.link {
+      wire."b/apps/app".dbreq = "b/apps/media/pg"; # B/pg provides NOTHING
+    } mkSources.sources).manifest
   );
 
   # step 4: materialize the bound node's class content through gen-view (a minimal scope graph).

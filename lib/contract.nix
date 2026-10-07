@@ -17,9 +17,8 @@ let
   # `door` is the published door the caller invoked, which the refusal names first (R6): the export
   # below, or `gen-link.link` for the edges `link` checks.
   capability =
-    door: r:
+    door: edgeName: requires: provides:
     let
-      inherit (r) edgeName provides requires;
       providesRecord = record.fromAttrs (prelude.genAttrs provides (_: true));
       missing = builtins.filter (t: !(record.has t providesRecord)) requires;
     in
@@ -30,9 +29,8 @@ let
 
   # refined: delegate to checkRefinements; a non-empty violation list is a loud error.
   refined =
-    door: r:
+    door: edgeName: refinedType: value:
     let
-      inherit (r) edgeName refinedType value;
       violations = schema.checkRefinements edgeName refinedType value;
     in
     if violations == [ ] then
@@ -42,27 +40,17 @@ let
         builtins.concatStringsSep "; " (map (v: v.message) violations)
       }";
 
-  # Both published doors take a data RECORD (every field required), so a missing field is refused by
-  # name and an extra one admitted (R5), catchably — the native formals refused both past `tryEval`.
-  # The check is forced by the result's own condition, at the call.
-  checkCapability =
-    args:
-    capability "gen-link.checkCapability" (
-      prelude.checkRequired "gen-link.checkCapability" [
-        "edgeName"
-        "provides"
-        "requires"
-      ] args
-    );
-  checkRefined =
-    args:
-    refined "gen-link.checkRefined" (
-      prelude.checkRequired "gen-link.checkRefined" [
-        "edgeName"
-        "refinedType"
-        "value"
-      ] args
-    );
+  # Both published doors are POSITIONAL (den-hoag-7gp66 P2, rule 4): their arity is structural and no
+  # record check remains. Each takes the edge name, then the contract, then the subject, which is the
+  # order of the authority it sequences: `checkRefined edgeName refinedType value` is gen-schema's
+  # `checkRefinements fieldPath type value`, and `checkCapability edgeName requires provides` is
+  # gen-algebra's `record.assertSatisfies required r` behind the name. The subject is what the door
+  # checks and returns (the filler's value; the provider's tags, as their record), so a check applied
+  # to a name and a contract is a predicate over providers. The name and the contract are two
+  # configuration operands WITH a natural order, the authority's own, so the keyed-record ruling does
+  # not reach them.
+  checkCapability = capability "gen-link.checkCapability";
+  checkRefined = refined "gen-link.checkRefined";
 in
 {
   inherit

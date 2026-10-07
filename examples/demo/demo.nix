@@ -73,22 +73,24 @@ let
     }
   ];
 
-  result = genLink.link {
-    sources = [
+  result =
+    genLink.link
       {
-        registry = collectionA.config.aspects;
-        inherit keySemantics;
-        origin = [ "a" ];
+        # fill B/app's `dbreq` hole with A's postgres provider (provides read,write ⊇ read).
+        wire."b/apps/app".dbreq = "a/apps/media/pg";
       }
-      {
-        registry = collectionB.config.aspects;
-        inherit keySemantics;
-        origin = [ "b" ];
-      }
-    ];
-    # fill B/app's `dbreq` hole with A's postgres provider (provides read,write ⊇ read).
-    wire."b/apps/app".dbreq = "a/apps/media/pg";
-  };
+      [
+        {
+          registry = collectionA.config.aspects;
+          inherit keySemantics;
+          origin = [ "a" ];
+        }
+        {
+          registry = collectionB.config.aspects;
+          inherit keySemantics;
+          origin = [ "b" ];
+        }
+      ];
 in
 {
   inherit result;

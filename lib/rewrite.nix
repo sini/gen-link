@@ -99,20 +99,22 @@ let
       inherit graph idToNode;
     };
 
-  # The published door's record is MIXED (`normalized`/`origin` required, `alias` optional) and closed
-  # over the whole set, so it composes the two shared checks rather than native formals, which refused
-  # a missing or unknown field past `tryEval`. The result is a record, so the check is forced ahead of
-  # it: the refusal meets the caller at the call, not at a later field read. The origin is checked
-  # here too, so a bad one is refused naming this door rather than `renderOrigin`.
+  # `originStamp { alias ?; } origin normalized` (den-hoag-7gp66 P2, rules 2 and 4). The one option,
+  # `alias`, is a closed options set first, a `prelude.door` refused by name and catchably at
+  # `originStamp opts`'s own WHNF. The origin is configuration and the normalized graph the subject the
+  # stamp relabels, so `originStamp { } origin` is an injection mapped over subgraphs. The result is a
+  # record, so the origin check is forced ahead of it: a bad origin is refused naming this door rather
+  # than `renderOrigin`, at the call and not at a later field read.
   originStamp =
-    args:
-    let
-      door = "gen-link.originStamp";
-      r = prelude.checkOptions door [ "normalized" "origin" "alias" ] (
-        prelude.checkRequired door [ "normalized" "origin" ] args
+    prelude.door
+      {
+        name = "gen-link.originStamp";
+        optional = [ "alias" ];
+      }
+      (
+        o: origin: normalized:
+        builtins.seq (ref.checkOrigin "originStamp" origin) (stamp (o // { inherit normalized origin; }))
       );
-    in
-    builtins.seq (ref.checkOrigin "originStamp" r.origin) (stamp r);
 in
 {
   inherit

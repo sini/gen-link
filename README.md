@@ -92,26 +92,24 @@ The single entry point is a pure `link` call. It stores nothing.
 
 ```nix
 link {
-  # sources: the origin-labeled subgraphs to federate. The importing flake joins as a source too, so
-  #   `self/*` references resolve — `self` is the surface name for its origin []. Per-source `origin`
-  #   (rescope) and `alias` (per-node rename) live on each entry; `keySemantics` is the source's facet
-  #   vocabulary and is REQUIRED — a source with no facets writes `keySemantics = { }` and says so,
-  #   because the omission's other reading ("the vocabulary was not passed") is what silently blinds
-  #   the completeness guard to that source's own holes.
-  sources = [
-    { registry = self.aspects; origin = [ ]; keySemantics = ks; }               # importer; `self` origin = []
-    { registry = a.aspects;    origin = [ "a" ]; keySemantics = ks; }           # default origin = source identity
-    { registry = b.aspects;    origin = [ "b" ]; keySemantics = ks;
-      alias = { "apps/media/pg" = "apps/media/postgres"; }; }                    # per-node rename
-  ];
-
   # wire: fill federation HOLES (facet-requires) only. Each filler is a node REFERENCE — a structured
   #   `{ origin; path }` or an origin-qualified path-string — bound by id, never a raw closure
   #   (defunctionalization, Reynolds 1972). `includes` are NEVER wired; the pipeline (not `wire`) fills
   #   context args (host/user/…). A key that is no DECLARED hole on that requirer is refused by name:
   #   the entries for a node are exactly its declared holes, no more (here) and no fewer (step 3).
   wire."b/apps/app".dbreq = "a/apps/media/pg";   # fill b/apps/app's `dbreq` facet-require with a's pg node
-}
+} [
+  # sources: the origin-labeled subgraphs to federate. The importing flake joins as a source too, so
+  #   `self/*` references resolve — `self` is the surface name for its origin []. Per-source `origin`
+  #   (rescope) and `alias` (per-node rename) live on each entry; `keySemantics` is the source's facet
+  #   vocabulary and is REQUIRED — a source with no facets writes `keySemantics = { }` and says so,
+  #   because the omission's other reading ("the vocabulary was not passed") is what silently blinds
+  #   the completeness guard to that source's own holes.
+    { registry = self.aspects; origin = [ ]; keySemantics = ks; }               # importer; `self` origin = []
+    { registry = a.aspects;    origin = [ "a" ]; keySemantics = ks; }           # default origin = source identity
+    { registry = b.aspects;    origin = [ "b" ]; keySemantics = ks;
+      alias = { "apps/media/pg" = "apps/media/postgres"; }; }                    # per-node rename
+]
 → {
   graph    = <origin-disjoint merged gen-scope subgraph>;   # not stored by gen-link
   manifest = <ordered list of { kind; from; to; via }>;     # diffable: cross-origin edges bound
@@ -174,9 +172,9 @@ Facets **type** an already-established edge; they never **resolve** one (resolut
 
 The flake's `.lib` exposes:
 
-### `link { sources, wire ? {} } → { graph; manifest; nodes; bound; resolved }`
+### `link { wire ? {} } sources → { graph; manifest; nodes; bound; resolved }`
 
-The federation conductor (above). `sources` entries are `{ registry; keySemantics; origin ? []; alias ? {}; }` — `keySemantics` carries no default, and a source that omits it is refused by name; `wire` is `{ "<requirerRef>" = { <facet> = "<fillerRef>"; }; }`, whose keys for a node must be exactly that node's declared holes. A `fillerRef` is an IDENTIFIER only — an origin-qualified path-string or structured `{ origin; path }` — never a declaration (a provider's stamped aspect value); handing it one is refused by name as `gen-link.link`.
+The federation conductor (above). The options come first, one closed set, and the sources, the subject, last (den-hoag-7gp66 P2), so an unknown option is refused by name when `link opts` is formed. `sources` entries are `{ registry; keySemantics; origin ? []; alias ? {}; }` — `keySemantics` carries no default, and a source that omits it is refused by name; `wire` is `{ "<requirerRef>" = { <facet> = "<fillerRef>"; }; }`, whose keys for a node must be exactly that node's declared holes. A `fillerRef` is an IDENTIFIER only — an origin-qualified path-string or structured `{ origin; path }` — never a declaration (a provider's stamped aspect value); handing it one is refused by name as `gen-link.link`.
 
 ### Identifier and identity
 
@@ -194,7 +192,7 @@ the settled law.
 
 An **identity** is the derived content-address, minted once per node by gen-identity's `hashIdentity`
 and reached ONLY through gen-scope's minting entry. It rides as a FIELD on the node —
-`(link {…}).nodes."<identifier>".identity` — never as its name.
+`(link {…} sources).nodes."<identifier>".identity` — never as its name.
 
 **gen-link publishes no function that computes either one.** There is nothing to construct for an
 identifier, and a second route to an identity would be a second minting authority. The four
@@ -227,29 +225,29 @@ carries it. Without it a consumer holding a row could not name the kind to mint 
 
 ### Federation Steps
 
-| Function        | Signature                                                  | Semantics                                                                                                        |
-| --------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `normalize`     | `registry → { nodesByKey; edges; refByToken }`             | Registry → source-relative, origin-free includes-graph. No content re-evaluation (bounded WHNF head-touch only). |
-| `originStamp`   | `{ normalized; origin; alias ? {} } → { graph; idToNode }` | The origin-rewrite: uniform relabel over gen-scope `gmap` (by-value and by-key edges alike) + per-node `alias`.  |
-| `disjointUnion` | `[ { graph; idToNode } ] → { graph; idToNode }`            | `overlay` the origin-stamped subgraphs (gen-scope union monoid). Collision-free by construction.                 |
+| Function        | Signature                                                    | Semantics                                                                                                        |
+| --------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `normalize`     | `registry → { nodesByKey; edges; refByToken }`               | Registry → source-relative, origin-free includes-graph. No content re-evaluation (bounded WHNF head-touch only). |
+| `originStamp`   | `{ alias ? {} } → origin → normalized → { graph; idToNode }` | The origin-rewrite: uniform relabel over gen-scope `gmap` (by-value and by-key edges alike) + per-node `alias`.  |
+| `disjointUnion` | `[ { graph; idToNode } ] → { graph; idToNode }`              | `overlay` the origin-stamped subgraphs (gen-scope union monoid). Collision-free by construction.                 |
 
 ### Facets & Contracts
 
-| Function          | Signature                                            | Semantics                                                                                                                  |
-| ----------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `holesOf`         | `ks → node → [facet]`                                | The node's facet keys whose value carries `requires` (unfilled capability holes).                                          |
-| `providesOf`      | `ks → node → [tag]`                                  | Union of `provides` tags across the node's facet keys.                                                                     |
-| `requiresOf`      | `node → facet → [tag]`                               | A capability hole's `requires` demand.                                                                                     |
-| `contractOf`      | `ks → facet → "capability" \| "refined"`             | The facet's contract flavor (default `"capability"`).                                                                      |
-| `checkCapability` | `{ edgeName; provides; requires } → record \| throw` | `requires ⊆ provides` via gen-algebra `record.has`; own named error on a missing tag, `record.assertSatisfies` on success. |
-| `checkRefined`    | `{ edgeName; refinedType; value } → value \| throw`  | gen-schema `checkRefinements` over a `__schema`-tagged refined type; own named error on a violation.                       |
+| Function          | Signature                                          | Semantics                                                                                                                  |
+| ----------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `holesOf`         | `ks → node → [facet]`                              | The node's facet keys whose value carries `requires` (unfilled capability holes).                                          |
+| `providesOf`      | `ks → node → [tag]`                                | Union of `provides` tags across the node's facet keys.                                                                     |
+| `requiresOf`      | `node → facet → [tag]`                             | A capability hole's `requires` demand.                                                                                     |
+| `contractOf`      | `ks → facet → "capability" \| "refined"`           | The facet's contract flavor (default `"capability"`).                                                                      |
+| `checkCapability` | `edgeName → requires → provides → record \| throw` | `requires ⊆ provides` via gen-algebra `record.has`; own named error on a missing tag, `record.assertSatisfies` on success. |
+| `checkRefined`    | `edgeName → refinedType → value → value \| throw`  | gen-schema `checkRefinements` over a `__schema`-tagged refined type; own named error on a violation.                       |
 
 ### Manifest
 
-| Function | Signature                                                          | Semantics                                                                                                                                                                  |
-| -------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `entry`  | `{ kind; from; fromKind; to; toKind; via ? null } → manifestEntry` | Construct one manifest entry. `kind` is the ROW's sort (`∈ { "includes", "hole" }`); `fromKind`/`toKind` are the endpoint NODES' kinds. Every field but `via` is required. |
-| `order`  | `[ entry ] → [ entry ]`                                            | Deterministic ordering for diff stability.                                                                                                                                 |
+| Function | Signature                                                               | Semantics                                                                                                                                                                                                                                                                                    |
+| -------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `entry`  | `{ via ? null } → { kind; from; fromKind; to; toKind } → manifestEntry` | Construct one manifest entry. `kind` is the ROW's sort (`∈ { "includes", "hole" }`); `fromKind`/`toKind` are the endpoint NODES' kinds. `via` is the one option; the five fields are one required open record (`from`/`to` have no natural order), and `via` given on it is refused by name. |
+| `order`  | `[ entry ] → [ entry ]`                                                 | Deterministic ordering for diff stability.                                                                                                                                                                                                                                                   |
 
 ## Testing
 

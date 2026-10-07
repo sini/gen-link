@@ -3,6 +3,7 @@
 {
   lib,
   genLink,
+  genPrelude,
   genMerge,
   aspects,
   mkAspectRegistry,
@@ -31,9 +32,9 @@ let
   allRowStrings =
     res: builtins.concatMap (e: builtins.filter builtins.isString (builtins.attrValues e)) res.manifest;
 
-  twoLabels = genLink.link fixtures.twoLabels;
-  chain = genLink.link fixtures.chain;
-  brokenCycle = genLink.link fixtures.brokenCycle;
+  twoLabels = fixtures.federate fixtures.twoLabels;
+  chain = fixtures.federate fixtures.chain;
+  brokenCycle = fixtures.federate fixtures.brokenCycle;
 in
 {
   # ── EVERY NODE IS AN EMITTER ──
@@ -108,30 +109,36 @@ in
     ];
   };
   # The kind is READ from the minting run rather than defaulted: `entry` takes both as REQUIRED
-  # formals. The cell measures the SIGNATURE rather than trying to catch the refusal, because a
-  # missing required formal is an EVALUATOR arity error and `tryEval` does not contain one — the
-  # same class of abort as calling a library entry with a formal it does not supply. `functionArgs`
-  # reports `false` for a formal with no default, so this says exactly which fields a caller may
-  # omit: `via` alone.
-  flake.tests.minting.test-both-endpoint-kinds-are-required-formals = {
-    expr = builtins.functionArgs genLink.entry;
+  # fields. The cell reads the door's published CONTRACT, as data (den-hoag-7gp66 P2, rule 1): the
+  # options step and, under `next`, the record step behind it. It says exactly which fields a caller
+  # may omit: `via` alone, which is an option and never a field of the record.
+  flake.tests.minting.test-both-endpoint-kinds-are-required-fields = {
+    expr = {
+      options = { inherit (genLink.entry.__contract) optional required; };
+      record = { inherit (genLink.entry.__contract.next) required open; };
+      args = genPrelude.functionArgs genLink.entry;
+    };
     expected = {
-      kind = false;
-      from = false;
-      fromKind = false;
-      to = false;
-      toKind = false;
-      via = true;
+      options.optional = [ "via" ];
+      options.required = [ ];
+      record.required = [
+        "kind"
+        "from"
+        "fromKind"
+        "to"
+        "toKind"
+      ];
+      record.open = true;
+      args.via = true;
     };
   };
   flake.tests.minting.test-a-row-is-built-from-identifiers-and-kinds = {
-    expr = genLink.entry {
+    expr = genLink.entry { via = "dbreq"; } {
       kind = "hole";
       from = "a/x";
       fromKind = "aspect";
       to = "b/y";
       toKind = "aspect";
-      via = "dbreq";
     };
     expected = {
       kind = "hole";
@@ -185,7 +192,7 @@ in
   flake.tests.minting.test-identities-are-invariant-under-presentation-order = {
     expr =
       let
-        reversed = genLink.link (
+        reversed = fixtures.federate (
           fixtures.chain
           // {
             sources = lib.reverseList fixtures.chain.sources;

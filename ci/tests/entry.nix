@@ -276,20 +276,8 @@ in
       );
       aspects = builtins.isAttrs (entry.parseRef "a/apps/media/pg");
       scope = builtins.isAttrs (entry.disjointUnion [ ]).graph;
-      algebra = builtins.isAttrs (
-        entry.checkCapability {
-          edgeName = "e";
-          provides = [ "read" ];
-          requires = [ "read" ];
-        }
-      );
-      schema = builtins.typeOf (
-        entry.checkRefined {
-          edgeName = "e";
-          refinedType = null;
-          value = 1;
-        }
-      );
+      algebra = builtins.isAttrs (entry.checkCapability "e" [ "read" ] [ "read" ]);
+      schema = builtins.typeOf (entry.checkRefined "e" null 1);
       view = builtins.deepSeq demo "linked";
     };
     expected = {

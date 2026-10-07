@@ -28,10 +28,7 @@ let
     ];
   };
   norm = genLink.normalize reg.config.aspects;
-  stamped = genLink.originStamp {
-    normalized = norm;
-    origin = [ "x" ];
-  };
+  stamped = genLink.originStamp { } [ "x" ] norm;
   # The identifiers are written as LITERALS rather than derived from the library, which is the whole
   # claim: a vertex name is now the readable origin-qualified reference, so a cell can spell it. A
   # cell deriving them from the same constructor the relabel uses would agree with any constructor.
@@ -60,10 +57,7 @@ let
     ];
   };
   normDangling = genLink.normalize regDangling.config.aspects;
-  stampedDangling = genLink.originStamp {
-    normalized = normDangling;
-    origin = [ "x" ];
-  };
+  stampedDangling = genLink.originStamp { } [ "x" ] normDangling;
 
   # A BARE-STRING includes entry (den-hoag-zxgan): the same by-key edge shape as by-value, so a
   # sound one names an edge and a dangling one refuses through the SAME `rewrite.originStamp`
@@ -86,10 +80,7 @@ let
     ];
   };
   normBareStringSound = genLink.normalize regBareStringSound.config.aspects;
-  stampedBareStringSound = genLink.originStamp {
-    normalized = normBareStringSound;
-    origin = [ "x" ];
-  };
+  stampedBareStringSound = genLink.originStamp { } [ "x" ] normBareStringSound;
 
   regBareStringDangling = mkAspectRegistry {
     keySemantics.nixos = {
@@ -105,10 +96,7 @@ let
     ];
   };
   normBareStringDangling = genLink.normalize regBareStringDangling.config.aspects;
-  stampedBareStringDangling = genLink.originStamp {
-    normalized = normBareStringDangling;
-    origin = [ "x" ];
-  };
+  stampedBareStringDangling = genLink.originStamp { } [ "x" ] normBareStringDangling;
 in
 {
   flake.tests.rewrite.test-vertices-are-identifiers = {
@@ -134,10 +122,10 @@ in
     expr =
       let
         aliased = genLink.originStamp {
-          normalized = norm;
-          origin = [ "x" ];
-          alias.helper = "helper-renamed";
-        };
+          alias = {
+            helper = "helper-renamed";
+          };
+        } [ "x" ] norm;
         oldGone = !(builtins.elem helperId aliased.graph.vertices);
         newAppeared = builtins.any (v: !(builtins.elem v stamped.graph.vertices)) aliased.graph.vertices;
       in
@@ -154,15 +142,15 @@ in
     expr =
       let
         s1 = genLink.originStamp {
-          normalized = norm;
-          origin = [ "x" ];
-          alias.helper = "helper-one";
-        };
+          alias = {
+            helper = "helper-one";
+          };
+        } [ "x" ] norm;
         s2 = genLink.originStamp {
-          normalized = norm;
-          origin = [ "x" ];
-          alias.helper = "helper-two";
-        };
+          alias = {
+            helper = "helper-two";
+          };
+        } [ "x" ] norm;
         h1 = builtins.filter (v: !(builtins.elem v stamped.graph.vertices)) s1.graph.vertices;
         h2 = builtins.filter (v: !(builtins.elem v stamped.graph.vertices)) s2.graph.vertices;
       in

@@ -61,33 +61,31 @@ let
     modules = [ { config.aspects.apps.media.pg.nixos = { }; } ];
   };
 
-  federated = genLink.link {
-    sources = [
-      {
-        registry = reg.config.aspects;
-        keySemantics = classKs;
-        origin = [ "x" ];
-      }
-      {
-        registry = target.config.aspects;
-        keySemantics = classKs;
-        origin = [ "y" ];
-      }
-    ];
-  };
+  federated = genLink.link { } [
+    {
+      registry = reg.config.aspects;
+      keySemantics = classKs;
+      origin = [ "x" ];
+    }
+    {
+      registry = target.config.aspects;
+      keySemantics = classKs;
+      origin = [ "y" ];
+    }
+  ];
 
   norm = genLink.normalize reg.config.aspects;
   # Stamp a normalized registry after tampering with one node's value, WITHOUT moving it in the map.
   stampTampered =
     f:
-    genLink.originStamp {
-      normalized = norm // {
+    genLink.originStamp { } [ "x" ] (
+      norm
+      // {
         nodesByKey = norm.nodesByKey // {
           helper = f norm.nodesByKey.helper;
         };
-      };
-      origin = [ "x" ];
-    };
+      }
+    );
 in
 {
   # ── THE JOIN ──

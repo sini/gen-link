@@ -62,11 +62,12 @@ let
   # own identifier plus its relatum labels and nothing here relates two different sorts of thing.
   aspectKind = "aspect";
 
-  # The door's record is MIXED (`sources` required, `wire` optional) and closed over the whole set, and
-  # so is each source record (`registry` required; `origin`, `alias`, `keySemantics` read below): both
-  # compose the two shared checks rather than native formals, which refused a missing or unknown field
-  # past `tryEval`. The call record is checked ahead of the result record, so the refusal meets the
-  # caller at the call.
+  # `link { wire ?; } sources` (den-hoag-7gp66 P2, rules 2 and 4). The one option, `wire`, is a closed
+  # options set first, a `prelude.door` refused by name and catchably at `link opts`'s own WHNF; the
+  # sources are the subject, positional and last, so `link { wire = …; }` is a federation awaiting its
+  # sources. Each source is a data element of that list, not a door step, so it keeps its closed check
+  # (`registry` required; `origin`, `alias`, `keySemantics` read below), forced ahead of the result
+  # record so the refusal meets the caller at the call.
   checkSource =
     s:
     let
@@ -76,21 +77,23 @@ let
     in
     builtins.seq (ref.checkOrigin "link" (c.origin or [ ])) c;
 
-  link =
-    args:
+  link = prelude.door {
+    name = door;
+    optional = [ "wire" ];
+  } (o: sources': linkChecked (o.wire or { }) sources');
+
+  linkChecked =
+    wire: sources':
     let
-      r = prelude.checkOptions door [ "sources" "wire" ] (prelude.checkRequired door [ "sources" ] args);
       # A non-list `sources` aborted uncatchably inside `map` (ADR-0025 item 1); refused by name here
       # instead (den-hoag-7gp66 P1 residue).
       sources =
-        if !(builtins.isList r.sources) then
-          throw "${door}: 'sources' is ${builtins.typeOf r.sources}, expected a list"
+        if !(builtins.isList sources') then
+          throw "${door}: 'sources' is ${builtins.typeOf sources'}, expected a list"
         else
-          map checkSource r.sources;
+          map checkSource sources';
     in
-    builtins.seq (prelude.foldl' (_: s: builtins.seq s null) null sources) (
-      linkOf sources (r.wire or { })
-    );
+    builtins.seq (prelude.foldl' (_: s: builtins.seq s null) null sources) (linkOf sources wire);
 
   linkOf =
     sources: wire:
@@ -185,24 +188,20 @@ let
                   if holes == [ ] then "none" else builtins.concatStringsSep ", " holes
                 }). Declare the hole (`${facet} = { requires = [ … ]; }`, with a `category = \"facet\"` keySemantics entry) or drop the filling."
               else if facets.contractOf rKs facet == "refined" then
-                contract.refined door {
-                  inherit edgeName;
+                contract.refined door edgeName
                   # A refined facet TYPES the edge with a gen-schema refined TYPE. gen-schema
                   # `checkRefinements` reads `type.__schema.refinements`, so it MUST be handed a proper
                   # refined type (`genSchema.refined <base> <refinements>`), NOT a raw refinements list —
                   # a raw list carries no `__schema`, and the check silently no-ops (blind). The source
                   # declares the facet's contract as a real refined type; gen-link reads THAT.
-                  refinedType =
-                    rKs.${facet}.refinedType
-                      or (throw "gen-link.link: facet '${facet}' declared refined but carries no `refinedType` (a genSchema.refined <base> <refinements> type)");
-                  value = fEntry.node;
-                }
+                  (rKs.${facet}.refinedType
+                    or (throw "gen-link.link: facet '${facet}' declared refined but carries no `refinedType` (a genSchema.refined <base> <refinements> type)")
+                  )
+                  fEntry.node
               else
-                contract.capability door {
-                  inherit edgeName;
-                  provides = facets.providesOf (ksOf fEntry.origin) fEntry.node;
-                  requires = facets.requiresOf rEntry.node facet;
-                }
+                contract.capability door edgeName (facets.requiresOf rEntry.node facet) (
+                  facets.providesOf (ksOf fEntry.origin) fEntry.node
+                )
             ) fillings;
           in
           # deepSeq forces every contract check to RUN (its throws fire) before the record is read.
@@ -418,7 +417,7 @@ let
       kindOf = identifier: minted.nodes.${identifier}.kind;
       manifestRow =
         kind: via: e:
-        manifest.entry {
+        manifest.entryCore {
           inherit kind via;
           inherit (e) from to;
           fromKind = kindOf e.from;

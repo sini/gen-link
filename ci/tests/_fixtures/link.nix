@@ -100,17 +100,21 @@ let
 
   # Every refusal is reached by forcing `.manifest`: the returned record reaches weak head normal
   # form without running a single guard, so a cell projecting anything shallower asserts nothing.
-  linkManifest = args: (genLink.link ({ inherit sources; } // args)).manifest;
+  # A fixture below is the call's DATA, `{ sources; wire ?; }`; `federate` applies `link` to it in the
+  # P2 shape, the options (`wire`) first and the sources, the subject, last.
+  federate = f: genLink.link (removeAttrs f [ "sources" ]) f.sources;
+  linkManifest = opts: (genLink.link opts sources).manifest;
 
   wired = genLink.link {
-    inherit sources;
-    wire."b/apps/app".dbreq = "a/apps/media/pg";
-  };
+    wire = {
+      "b/apps/app".dbreq = "a/apps/media/pg";
+    };
+  } sources;
 
   # The SAME federation with nothing wired: `b/apps/app` declares a `dbreq` hole and no `wire` entry
   # names it. Held as a value rather than a `linkManifest` call because the cells over it project
   # each field of the result in turn.
-  unwired = genLink.link { inherit sources; };
+  unwired = genLink.link { } sources;
 in
 {
   inherit
@@ -118,6 +122,7 @@ in
     srcOf
     provider
     sources
+    federate
     linkManifest
     wired
     unwired
