@@ -32,6 +32,7 @@
   genMerge,
   aspects,
   mkAspectRegistry,
+  genPrelude,
   ...
 }:
 let
@@ -56,6 +57,9 @@ let
 
   # The message, pinned to the byte. nixpkgs' metacharacter set is the one the pattern is read under.
   exactly = msg: "^" + lib.escapeRegex msg + "$";
+  # gen-prelude's refusal text, composed with this library's own literal door, field and accepted
+  # set (den-hoag-7jltk): every assertion kept, none of gen-prelude's wording copied.
+  inherit (genPrelude) refusals;
 
   # ── `rewrite.originStamp`'s DANGLING-INCLUDES REFUSAL ──
   # Same fixture as `ci/tests/rewrite.nix`'s `regDangling`/`normDangling`/`stampedDangling` — an
@@ -111,8 +115,7 @@ let
   };
 
   # prelude.resolve's identifier-arm refusal, named by the door the caller invoked.
-  unresolvedIdentifierRefusal =
-    door: id: "${door}: reference '${id}' names no entry of the registry (in prelude.resolve)";
+  unresolvedIdentifierRefusal = refusals.unknownReference;
 
   # A requirer demanding a tag its filler does not provide: the contract refusal `link` reaches.
   underProvided = {
@@ -284,10 +287,8 @@ in
       };
       missing =
         door: field: required:
-        "${door}: required field '${field}' is missing (required: ${required}) (in prelude.checkRequired)";
-      unknown =
-        door: accepted:
-        "${door}: 'notAnOption' is not an option of this door; the options are closed (accepted: ${accepted}) (in prelude.checkOptions)";
+        refusals.missingField door required field;
+      unknown = door: accepted: refusals.unknownOption door accepted "notAnOption";
       stamp = {
         normalized = normBareStringDangling;
         origin = [ "x" ];
@@ -295,10 +296,19 @@ in
       src = builtins.head fixtures.sources;
     in
     {
-      test-check-capability-missing = thrown (genLink.checkCapability {
-        edgeName = "e";
-        provides = [ ];
-      }) (missing "gen-link.checkCapability" "requires" "'edgeName', 'provides', 'requires'");
+      test-check-capability-missing =
+        thrown
+          (genLink.checkCapability {
+            edgeName = "e";
+            provides = [ ];
+          })
+          (
+            missing "gen-link.checkCapability" "requires" [
+              "edgeName"
+              "provides"
+              "requires"
+            ]
+          );
       test-check-capability-refusal-names-the-door =
         thrown
           (genLink.checkCapability {
@@ -307,34 +317,75 @@ in
             requires = [ "admin" ];
           })
           "gen-link.checkCapability: edge 'e' fails capability — provider missing required tag(s): admin (provides: read)";
-      test-check-refined-missing = thrown (genLink.checkRefined {
-        edgeName = "e";
-        refinedType = null;
-      }) (missing "gen-link.checkRefined" "value" "'edgeName', 'refinedType', 'value'");
+      test-check-refined-missing =
+        thrown
+          (genLink.checkRefined {
+            edgeName = "e";
+            refinedType = null;
+          })
+          (
+            missing "gen-link.checkRefined" "value" [
+              "edgeName"
+              "refinedType"
+              "value"
+            ]
+          );
       test-origin-stamp-missing = thrown (genLink.originStamp { normalized = { }; }) (
-        missing "gen-link.originStamp" "origin" "'normalized', 'origin'"
+        missing "gen-link.originStamp" "origin" [
+          "normalized"
+          "origin"
+        ]
       );
       test-origin-stamp-unknown = thrown (genLink.originStamp (stamp // { notAnOption = 1; })) (
-        unknown "gen-link.originStamp" "'normalized', 'origin', 'alias'"
+        unknown "gen-link.originStamp" [
+          "normalized"
+          "origin"
+          "alias"
+        ]
       );
       test-origin-stamp-bad-origin = thrown (genLink.originStamp (
         stamp // { origin = "x"; }
       )) "gen-link.originStamp: got string, expected an origin (a list of strings)";
-      test-entry-unknown = thrown (genLink.entry {
-        kind = "hole";
-        from = "a/x";
-        fromKind = "aspect";
-        to = "b/y";
-        toKind = "aspect";
-        notAnOption = 1;
-      }) (unknown "gen-link.entry" "'kind', 'from', 'fromKind', 'to', 'toKind', 'via'");
-      test-link-missing = thrown (genLink.link { }) (missing "gen-link.link" "sources" "'sources'");
-      test-link-unknown = thrown (genLink.link {
-        sources = [ ];
-        notAnOption = 1;
-      }) (unknown "gen-link.link" "'sources', 'wire'");
+      test-entry-unknown =
+        thrown
+          (genLink.entry {
+            kind = "hole";
+            from = "a/x";
+            fromKind = "aspect";
+            to = "b/y";
+            toKind = "aspect";
+            notAnOption = 1;
+          })
+          (
+            unknown "gen-link.entry" [
+              "kind"
+              "from"
+              "fromKind"
+              "to"
+              "toKind"
+              "via"
+            ]
+          );
+      test-link-missing = thrown (genLink.link { }) (missing "gen-link.link" "sources" [ "sources" ]);
+      test-link-unknown =
+        thrown
+          (genLink.link {
+            sources = [ ];
+            notAnOption = 1;
+          })
+          (
+            unknown "gen-link.link" [
+              "sources"
+              "wire"
+            ]
+          );
       test-link-source-unknown = thrown (genLink.link { sources = [ (src // { notAnOption = 1; }) ]; }) (
-        unknown "gen-link.link (a source)" "'registry', 'origin', 'alias', 'keySemantics'"
+        unknown "gen-link.link (a source)" [
+          "registry"
+          "origin"
+          "alias"
+          "keySemantics"
+        ]
       );
       test-link-source-bad-origin = thrown (genLink.link {
         sources = [ (src // { origin = "a"; }) ];
