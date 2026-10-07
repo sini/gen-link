@@ -219,14 +219,27 @@ in
 
   # ── THE DANGLING INCLUDES ENTRY, BY ITS OWN TEXT ──
   # `ci/tests/rewrite.nix`'s `test-dangling-includes-refuses-by-name` is the boolean half of this
-  # claim; this is the half that says WHICH entry the refusal names. An inline entry's key ends in
-  # its list position, nixpkgs `listOf`'s segment `[definition n-entry m]` as gen-merge folds it.
+  # claim; this is the half that says WHICH entry the refusal names. An inline entry is an anonymous
+  # declaration (den-hoag-8hlo3): its key is `orphan/includes/` and its declaration address, here an
+  # anonymous module's `a:<i>` anchor and the option path to the list position. The cell reads the
+  # sentence, the owner and that address's shape, never the module index (gen-aspects' to number) and
+  # never a store path, which no anonymous module's anchor carries.
   config.flake.testsError.rewrite-refusals = {
     test-dangling-includes-message-names-the-entry = {
       expr = stampedDangling.graph.vertices;
       expectedError = {
         type = "ThrownError";
-        msg = exactly (danglingIncludesRefusal "x" "orphan/includes/[definition 1-entry 1]");
+        msg =
+          let
+            parts = lib.splitString "@ENTRY@" (danglingIncludesRefusal "x" "@ENTRY@");
+          in
+          "^"
+          + lib.escapeRegex (builtins.head parts)
+          + lib.escapeRegex "orphan/includes/[\"a:"
+          + "[0-9]+"
+          + lib.escapeRegex "\",\"aspects\",\"orphan\",\"includes\",0]"
+          + lib.escapeRegex (builtins.elemAt parts 1)
+          + "$";
       };
     };
     # `ci/tests/rewrite.nix`'s `test-barestring-dangling-refuses-by-name` is the boolean half; this
