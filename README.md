@@ -174,7 +174,7 @@ The flake's `.lib` exposes:
 
 ### `link { wire ? {} } sources → { graph; manifest; nodes; bound; resolved }`
 
-The federation conductor (above). The options come first, one closed set, and the sources, the subject, last (den-hoag-7gp66 P2), so an unknown option is refused by name when `link opts` is formed. `sources` entries are `{ registry; keySemantics; origin ? []; alias ? {}; }` — `keySemantics` carries no default, and a source that omits it is refused by name; `wire` is `{ "<requirerRef>" = { <facet> = "<fillerRef>"; }; }`, whose keys for a node must be exactly that node's declared holes. A `fillerRef` is an IDENTIFIER only — an origin-qualified path-string or structured `{ origin; path }` — never a declaration (a provider's stamped aspect value); handing it one is refused by name as `gen-link.link`.
+The federation conductor (above). The options come first, one closed set, and the sources, the subject, last, so an unknown option is refused by name when `link opts` is formed. `sources` entries are `{ registry; keySemantics; origin ? []; alias ? {}; }` — `keySemantics` carries no default, and a source that omits it is refused by name; `wire` is `{ "<requirerRef>" = { <facet> = "<fillerRef>"; }; }`, whose keys for a node must be exactly that node's declared holes. A `fillerRef` is an IDENTIFIER only — an origin-qualified path-string or structured `{ origin; path }` — never a declaration (a provider's stamped aspect value); handing it one is refused by name as `gen-link.link`.
 
 ### Identifier and identity
 
