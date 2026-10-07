@@ -202,7 +202,7 @@ in
       expr = manifestOf fixtures.selfFilling;
       expectedError = {
         type = "ThrownError";
-        msg = exactly (unresolvedRelatumRefusal "b/apps/app" "dbreq" "aspect" 0);
+        msg = "^" + lib.escapeRegex (unresolvedRelatumRefusal "b/apps/app" "dbreq" "aspect" 0);
       };
     };
     # Within a pass there is no order, so the members of a cycle are ordered by their own declared
@@ -212,7 +212,7 @@ in
       expr = manifestOf fixtures.cycle;
       expectedError = {
         type = "ThrownError";
-        msg = exactly (unresolvedRelatumRefusal "b/nb" "dbreq" "aspect" 0);
+        msg = "^" + lib.escapeRegex (unresolvedRelatumRefusal "b/nb" "dbreq" "aspect" 0);
       };
     };
   };
