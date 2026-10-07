@@ -111,21 +111,19 @@ let
   # Both sources are present so the cross-origin `includes` resolves — the ONLY defect is the
   # unwired hole. Decision 7 demands a loud, named error, not a silent unbound success.
   unwiredRequirer = builtins.tryEval (
-    (genLink.link {
-      sources = [
-        {
-          registry = regA.config.aspects;
-          keySemantics = ks;
-          origin = [ "a" ];
-        }
-        {
-          registry = regB.config.aspects;
-          keySemantics = ks;
-          origin = [ "b" ];
-        }
-      ];
-      # deliberately no `wire`: b/apps/app#dbreq is left unfilled.
-    }).manifest
+    # deliberately no `wire`: b/apps/app#dbreq is left unfilled.
+    (genLink.link { } [
+      {
+        registry = regA.config.aspects;
+        keySemantics = ks;
+        origin = [ "a" ];
+      }
+      {
+        registry = regB.config.aspects;
+        keySemantics = ks;
+        origin = [ "b" ];
+      }
+    ]).manifest
   );
 
   # ── THE TWO-PROVIDING-INCLUDE FEDERATION ──
