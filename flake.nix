@@ -51,6 +51,7 @@
     gen-identity.url = "github:sini/gen-identity";
     gen-schema.inputs.gen-identity.follows = "gen-identity";
     gen-scope.inputs.gen-identity.follows = "gen-identity";
+    gen-scope.inputs.gen-algebra.follows = "gen-algebra";
     gen-aspects.inputs.gen-identity.follows = "gen-identity";
   };
 
