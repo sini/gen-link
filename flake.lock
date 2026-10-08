@@ -825,11 +825,11 @@
         "gen-prelude": "gen-prelude_18"
       },
       "locked": {
-        "lastModified": 1791423691,
-        "narHash": "sha256-Y7qU/fxD+f82SgRMv0B7dVK8b7GatV8SyauQMtmp5Jg=",
+        "lastModified": 1791430927,
+        "narHash": "sha256-MmEc8dT+d0VRah1pKeDORjxxuHObjAz6IjfzWsgIobM=",
         "owner": "sini",
         "repo": "gen-view",
-        "rev": "61fa073938725e7338105e3343a266875e1adefc",
+        "rev": "e3bf9b8275a6e15d1434146e27dd739a310fb45f",
         "type": "github"
       },
       "original": {

@@ -381,7 +381,6 @@ let
                 project = n: n.decls.provided;
                 marks = _: [ ];
                 localShadowsImport = true;
-                importShadowsParent = true;
                 transitiveImports = false;
               }).compute;
           }
